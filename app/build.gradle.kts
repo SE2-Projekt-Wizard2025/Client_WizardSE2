@@ -2,8 +2,15 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    id("org.sonarqube") version "5.1.0.4882"
 }
-
+sonar {
+    properties {
+        property("sonar.projectKey", "SE2-Projekt-Wizard2025_Client_WizardSE2")
+        property("sonar.organization", "se2-projekt-wizard2025")
+        property("sonar.host.url", "https://sonarcloud.io")
+    }
+}
 android {
     namespace = "at.klu.client_wizardse2"
     compileSdk = 35
