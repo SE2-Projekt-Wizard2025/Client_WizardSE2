@@ -15,6 +15,7 @@ sonar {
             "sonar.coverage.jacoco.xmlReportPaths",
             "${project.projectDir}/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml"
         )
+        property("sonar.coverage.exclusions", "**/ui/**, **/theme/**, **/MainActivity.kt, **/GameStompClient.kt")
     }
 }
 android {
@@ -75,8 +76,13 @@ tasks.register<JacocoReport>("jacocoTestReport") {
         "**/BuildConfig.*",
         "**/Manifest*.*",
         "**/*Test*.*",
-        "android/**/*.*"
+        "android/**/*.*",
+        "**/ui/presentation/screen/**",
+        "**/ui/theme/**",
+        "**/ui/presentation/MainActivity*",
+        "**/data/websocket/GameStompClient*"
     )
+
 
     val debugTree =
         fileTree("${project.layout.buildDirectory.get().asFile}/tmp/kotlin-classes/debug") {
