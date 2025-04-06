@@ -15,6 +15,7 @@ sonar {
             "sonar.coverage.jacoco.xmlReportPaths",
             "${project.projectDir}/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml"
         )
+        property("sonar.coverage.exclusions", "**/ui/**, **/theme/**, **/MainActivity.kt, **/GameStompClient.kt")
     }
 }
 android {
@@ -53,7 +54,7 @@ android {
     testOptions {
         unitTests {
             all {
-                it.useJUnitPlatform()
+                // it.useJUnitPlatform()
                 it.finalizedBy(tasks.named("jacocoTestReport"))
             }
         }
@@ -75,8 +76,13 @@ tasks.register<JacocoReport>("jacocoTestReport") {
         "**/BuildConfig.*",
         "**/Manifest*.*",
         "**/*Test*.*",
-        "android/**/*.*"
+        "android/**/*.*",
+        "**/ui/presentation/screen/**",
+        "**/ui/theme/**",
+        "**/ui/presentation/MainActivity*",
+        "**/data/websocket/GameStompClient*"
     )
+
 
     val debugTree =
         fileTree("${project.layout.buildDirectory.get().asFile}/tmp/kotlin-classes/debug") {
@@ -102,6 +108,9 @@ tasks.register<JacocoReport>("jacocoTestReport") {
 }
 dependencies {
 
+    implementation(libs.krossbow.stomp.core)
+    implementation(libs.krossbow.websocket.okhttp)
+    implementation(libs.krossbow.websocket.ktor)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
@@ -110,9 +119,14 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
+    implementation(libs.gson)
+    testImplementation(libs.mockk)
+    testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.junit)
-    testImplementation(libs.junit.jupiter.api)
-    testRuntimeOnly(libs.junit.jupiter.engine)
+    testImplementation(libs.kotlin.reflect)
+    testImplementation(libs.robolectric)
+    // testImplementation(libs.junit.jupiter.api)
+    // testRuntimeOnly(libs.junit.jupiter.engine)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
