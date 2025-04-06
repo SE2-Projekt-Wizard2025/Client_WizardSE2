@@ -102,6 +102,9 @@ tasks.register<JacocoReport>("jacocoTestReport") {
 }
 dependencies {
 
+    implementation("org.hildan.krossbow:krossbow-stomp-core:9.2.0")
+    implementation("org.hildan.krossbow:krossbow-websocket-okhttp:9.2.0")
+    implementation("org.hildan.krossbow:krossbow-websocket-ktor:9.2.0")
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
