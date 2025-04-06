@@ -13,6 +13,7 @@ import org.hildan.krossbow.stomp.StompSession
 import org.hildan.krossbow.stomp.sendText
 import org.hildan.krossbow.stomp.subscribeText
 import org.hildan.krossbow.websocket.okhttp.OkHttpWebSocketClient
+import org.jetbrains.annotations.VisibleForTesting
 import org.json.JSONObject
 
 private const val WEBSOCKET_URI = "ws://10.0.2.2:8080/ws-broker"
@@ -66,6 +67,19 @@ class GameStompClient(val callbacks: StompCallback) {
         Handler(Looper.getMainLooper()).post{
             callbacks.onResponse(msg)
         }
+    }
+
+    /**
+     * Directly invokes the [StompCallback.onResponse] method without posting to the main thread.
+     *
+     * This method is intended for use in tests to bypass Android-specific behavior such as
+     * [Handler] and [Looper], making it easier to verify callback logic synchronously.
+     *
+     * @param msg The message string to be passed to the callback.
+     */
+    @VisibleForTesting
+    internal fun directCallback(msg: String) {
+        callbacks.onResponse(msg)
     }
 
     /**
