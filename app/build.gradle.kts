@@ -4,6 +4,9 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     id("org.sonarqube") version "5.1.0.4882"
     id("jacoco")
+    id("com.google.dagger.hilt.android") version "2.51"
+    kotlin("kapt")
+    kotlin("plugin.serialization") version "1.9.22"
 }
 sonar {
     properties {
@@ -107,7 +110,10 @@ tasks.register<JacocoReport>("jacocoTestReport") {
     })
 }
 dependencies {
-
+    implementation(libs.androidx.hilt.navigation.compose)
+    implementation(libs.hilt.android)
+    kapt(libs.hilt.android.compiler)
+    implementation(libs.kotlinx.serialization.json)
     implementation(libs.krossbow.stomp.core)
     implementation(libs.krossbow.websocket.okhttp)
     implementation(libs.krossbow.websocket.ktor)
@@ -125,8 +131,6 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.kotlin.reflect)
     testImplementation(libs.robolectric)
-    // testImplementation(libs.junit.jupiter.api)
-    // testRuntimeOnly(libs.junit.jupiter.engine)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))

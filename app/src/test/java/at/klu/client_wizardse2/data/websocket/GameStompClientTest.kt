@@ -14,7 +14,7 @@ import org.junit.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class GameStompClientTest {
 
-    private lateinit var stompClient: GameStompClient
+    private lateinit var stompClient: GStompClient
     private lateinit var session: StompSession
     private lateinit var callback: StompCallback
     private lateinit var client: StompClient
@@ -28,7 +28,7 @@ class GameStompClientTest {
         callback = mockk(relaxed = true)
         session = mockk(relaxed = true)
         client = mockk(relaxed = true)
-        stompClient = GameStompClient(callback)
+        stompClient = GStompClient(callback)
 
         injectPrivate("session", session)
         injectPrivate("client", client)
@@ -58,7 +58,7 @@ class GameStompClientTest {
      * Helper to inject private field via reflection.
      */
     private fun injectPrivate(fieldName: String, value: Any) {
-        GameStompClient::class.java.getDeclaredField(fieldName).apply {
+        GStompClient::class.java.getDeclaredField(fieldName).apply {
             isAccessible = true
             set(stompClient, value)
         }

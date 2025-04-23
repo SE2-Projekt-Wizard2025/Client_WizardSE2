@@ -1,6 +1,6 @@
 package at.klu.client_wizardse2.ui.presentation
 
-import at.klu.client_wizardse2.data.websocket.GameStompClient
+import at.klu.client_wizardse2.data.websocket.GStompClient
 import io.mockk.*
 import org.junit.After
 import org.junit.Before
@@ -11,15 +11,15 @@ import org.junit.Assert.assertEquals
 class MainViewModelTest {
 
     private lateinit var viewModel: MainViewModel
-    private lateinit var stompClient: GameStompClient
+    private lateinit var stompClient: GStompClient
 
     @Before
     fun setUp() {
-        mockkConstructor(GameStompClient::class)
-        stompClient = spyk(GameStompClient(mockk()))
-        every { anyConstructed<GameStompClient>().connect() } just Runs
-        every { anyConstructed<GameStompClient>().sendHello() } just Runs
-        every { anyConstructed<GameStompClient>().sendJson() } just Runs
+        mockkConstructor(GStompClient::class)
+        stompClient = spyk(GStompClient(mockk()))
+        every { anyConstructed<GStompClient>().connect() } just Runs
+        every { anyConstructed<GStompClient>().sendHello() } just Runs
+        every { anyConstructed<GStompClient>().sendJson() } just Runs
 
         viewModel = MainViewModel()
     }
@@ -42,13 +42,13 @@ class MainViewModelTest {
     fun `sendHello calls GameStompClient sendHello`() {
         viewModel.sendHello()
 
-        verify { anyConstructed<GameStompClient>().sendHello() }
+        verify { anyConstructed<GStompClient>().sendHello() }
     }
 
     @Test
     fun `sendJson calls GameStompClient sendJson`() {
         viewModel.sendJson()
 
-        verify { anyConstructed<GameStompClient>().sendJson() }
+        verify { anyConstructed<GStompClient>().sendJson() }
     }
 }
