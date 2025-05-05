@@ -14,6 +14,8 @@ sonar {
         property("sonar.organization", "se2-projekt-wizard2025")
         property("sonar.host.url", "https://sonarcloud.io")
         property("sonar.java.coveragePlugin", "jacoco")
+        property("sonar.login", System.getenv("SONAR_TOKEN"))
+        property("sonar.androidVariant", "debug")
         property(
             "sonar.coverage.jacoco.xmlReportPaths",
             "${project.projectDir}/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml"
@@ -81,9 +83,10 @@ tasks.register<JacocoReport>("jacocoTestReport") {
         "**/*Test*.*",
         "android/**/*.*",
         "**/ui/presentation/screen/**",
+        "**/ui/presentation/sections/**",
         "**/ui/theme/**",
         "**/ui/presentation/MainActivity*",
-        "**/data/websocket/GameStompClient*"
+        "**/model/**"
     )
 
 
