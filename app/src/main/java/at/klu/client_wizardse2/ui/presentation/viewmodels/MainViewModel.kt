@@ -4,6 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 
@@ -24,9 +25,10 @@ class MainViewModel @Inject constructor() : ViewModel() {
         try {
             val connected = GameStompClient.connect()
             if (connected) {
-                GameStompClient.subscribeToGameUpdates {
-                    gameResponse = it
-                }
+                GameStompClient.subscribeToGameUpdates(
+                    onUpdate = { gameResponse = it },
+                    scope = viewModelScope
+                )
                 GameStompClient.sendJoinRequest(gameId, playerId, playerName)
             } else {
                 error = "Connection to server failed"

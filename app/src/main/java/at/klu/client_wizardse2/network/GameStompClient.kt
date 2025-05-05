@@ -18,7 +18,7 @@ private const val WEBSOCKET_URI = "ws://10.0.2.2:8080/ws"
 private const val TAG = "GameStompClient"
 
 object GameStompClient {
-    private val stompClient = StompClient(OkHttpWebSocketClient())
+    private var stompClient = StompClient(OkHttpWebSocketClient())
     private var session: StompSession? = null
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -100,7 +100,10 @@ object GameStompClient {
      * }
      * ```
      */
-    suspend fun subscribeToGameUpdates(onUpdate: (GameResponse) -> Unit) {
+    suspend fun subscribeToGameUpdates(
+        onUpdate: (GameResponse) -> Unit,
+        scope: CoroutineScope = CoroutineScope(Dispatchers.Main)
+    ) {
         session?.subscribeText("/topic/game")?.onEach { message ->
             try {
                 val response = json.decodeFromString(GameResponse.serializer(), message)
@@ -108,6 +111,11 @@ object GameStompClient {
             } catch (e: Exception) {
                 e.printStackTrace()
             }
-        }?.launchIn(CoroutineScope(Dispatchers.Main))
+        }?.launchIn(scope)
+    }
+
+    // Only for Testing:
+    fun setSessionForTesting(mock: StompSession) {
+        session = mock
     }
 }

@@ -1,5 +1,6 @@
 [versions]
 agp = "8.9.2"
+byteBuddy = "1.14.12"
 gson = "2.10.1"
 hiltAndroid = "2.51"
 hiltNavigationCompose = "1.2.0"
@@ -19,11 +20,13 @@ composeBom = "2025.04.00"
 junitJupiterApi = "5.11.4"
 mockk = "1.13.5"
 robolectric = "4.10.3"
+slf4jSimple = "2.0.12"
 
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-hilt-navigation-compose = { module = "androidx.hilt:hilt-navigation-compose", version.ref = "hiltNavigationCompose" }
+byte-buddy = { module = "net.bytebuddy:byte-buddy", version.ref = "byteBuddy" }
 gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
 hilt-android = { module = "com.google.dagger:hilt-android", version.ref = "hiltAndroid" }
 hilt-android-compiler = { module = "com.google.dagger:hilt-android-compiler", version.ref = "hiltAndroid" }
@@ -48,6 +51,7 @@ krossbow-websocket-ktor = { module = "org.hildan.krossbow:krossbow-websocket-kto
 krossbow-websocket-okhttp = { module = "org.hildan.krossbow:krossbow-websocket-okhttp", version.ref = "krossbowWebsocketOkhttp" }
 mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
 robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
+slf4j-simple = { module = "org.slf4j:slf4j-simple", version.ref = "slf4jSimple" }
 
 
 [plugins]

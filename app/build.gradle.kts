@@ -18,7 +18,7 @@ sonar {
             "sonar.coverage.jacoco.xmlReportPaths",
             "${project.projectDir}/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml"
         )
-        property("sonar.coverage.exclusions", "**/ui/**, **/theme/**, **/MainActivity.kt, **/GameStompClient.kt")
+        property("sonar.coverage.exclusions", "**/screen/**, **/sections/**, **/model/**, **/theme/**, **/MainActivity.kt")
     }
 }
 android {
@@ -131,6 +131,8 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.kotlin.reflect)
     testImplementation(libs.robolectric)
+    testImplementation(libs.slf4j.simple)
+    testImplementation(libs.byte.buddy)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
