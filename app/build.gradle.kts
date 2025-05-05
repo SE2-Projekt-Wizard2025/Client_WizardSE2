@@ -4,6 +4,9 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     id("org.sonarqube") version "5.1.0.4882"
     id("jacoco")
+    id("com.google.dagger.hilt.android") version "2.51"
+    kotlin("kapt")
+    kotlin("plugin.serialization") version "1.9.22"
 }
 sonar {
     properties {
@@ -11,11 +14,13 @@ sonar {
         property("sonar.organization", "se2-projekt-wizard2025")
         property("sonar.host.url", "https://sonarcloud.io")
         property("sonar.java.coveragePlugin", "jacoco")
+        property("sonar.login", System.getenv("SONAR_TOKEN"))
+        property("sonar.androidVariant", "debug")
         property(
             "sonar.coverage.jacoco.xmlReportPaths",
             "${project.projectDir}/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml"
         )
-        property("sonar.coverage.exclusions", "**/ui/**, **/theme/**, **/MainActivity.kt, **/GameStompClient.kt")
+        property("sonar.coverage.exclusions", "**/screen/**, **/sections/**, **/model/**, **/theme/**, **/MainActivity.kt")
     }
 }
 android {
@@ -34,7 +39,7 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -78,9 +83,10 @@ tasks.register<JacocoReport>("jacocoTestReport") {
         "**/*Test*.*",
         "android/**/*.*",
         "**/ui/presentation/screen/**",
+        "**/ui/presentation/sections/**",
         "**/ui/theme/**",
         "**/ui/presentation/MainActivity*",
-        "**/data/websocket/GameStompClient*"
+        "**/model/**"
     )
 
 
@@ -107,7 +113,10 @@ tasks.register<JacocoReport>("jacocoTestReport") {
     })
 }
 dependencies {
-
+    implementation(libs.androidx.hilt.navigation.compose)
+    implementation(libs.hilt.android)
+    kapt(libs.hilt.android.compiler)
+    implementation(libs.kotlinx.serialization.json)
     implementation(libs.krossbow.stomp.core)
     implementation(libs.krossbow.websocket.okhttp)
     implementation(libs.krossbow.websocket.ktor)
@@ -125,8 +134,8 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.kotlin.reflect)
     testImplementation(libs.robolectric)
-    // testImplementation(libs.junit.jupiter.api)
-    // testRuntimeOnly(libs.junit.jupiter.engine)
+    testImplementation(libs.slf4j.simple)
+    testImplementation(libs.byte.buddy)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
