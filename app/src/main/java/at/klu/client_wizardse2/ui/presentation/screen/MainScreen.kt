@@ -16,7 +16,7 @@ import at.klu.client_wizardse2.ui.presentation.viewmodels.MainViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(viewModel: MainViewModel = viewModel()) {
-    Scaffold(
+    /*Scaffold(
         topBar = {
             TopAppBar(title = { Text("Wizard SE2") })
         }
@@ -25,6 +25,7 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
             JoinSection(viewModel)
             // later: SettingsSection(), LobbySection(), GameSection() ...
         }
-    }
+    }*/
+    LobbyScreen()
 }
 
