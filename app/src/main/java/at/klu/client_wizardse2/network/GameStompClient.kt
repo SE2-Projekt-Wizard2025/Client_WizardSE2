@@ -113,6 +113,9 @@ object GameStompClient {
             }
         }?.launchIn(scope)
     }
+    suspend fun sendStartGameRequest(gameId: String) {
+        session?.sendText("/app/game/start", gameId)
+    }
 
     // Only for Testing:
     fun setSessionForTesting(mock: StompSession) {

@@ -21,8 +21,21 @@ class MainViewModel @Inject constructor() : ViewModel() {
     var error by mutableStateOf<String?>(null)
         private set
 
+    var gameId: String = ""
+        private set
+
+    var playerId: String = ""
+        private set
+
+    var playerName: String = ""
+        private set
+
     suspend fun connectAndJoin(gameId: String, playerId: String, playerName: String) {
         try {
+            this.gameId = gameId
+            this.playerId = playerId
+            this.playerName = playerName
+
             val connected = GameStompClient.connect()
             if (connected) {
                 GameStompClient.subscribeToGameUpdates(
@@ -36,5 +49,18 @@ class MainViewModel @Inject constructor() : ViewModel() {
         } catch (e: Exception) {
             error = "Error: ${e.message}"
         }
+    }
+
+    suspend fun startGame() {
+        GameStompClient.sendStartGameRequest(gameId)
+    }
+
+    fun canStartGame(): Boolean {
+        val playerCount = gameResponse?.players?.size ?: 0
+        return playerCount in 3..6
+    }
+
+    fun hasGameStarted(): Boolean {
+        return gameResponse?.status?.name == "PLAYING"
     }
 }
