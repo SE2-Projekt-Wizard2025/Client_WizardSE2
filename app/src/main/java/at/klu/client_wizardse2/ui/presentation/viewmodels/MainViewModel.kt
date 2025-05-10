@@ -5,15 +5,16 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import dagger.hilt.android.lifecycle.HiltViewModel
-import javax.inject.Inject
+//import dagger.hilt.android.lifecycle.HiltViewModel
+//import javax.inject.Inject
 
 import at.klu.client_wizardse2.model.response.GameResponse
 import at.klu.client_wizardse2.network.GameStompClient
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 
-@HiltViewModel
-class MainViewModel @Inject constructor() : ViewModel() {
+class MainViewModel : ViewModel() {
 
     var gameResponse by mutableStateOf<GameResponse?>(null)
         private set
@@ -30,34 +31,30 @@ class MainViewModel @Inject constructor() : ViewModel() {
     var playerName: String = ""
         private set
 
-    suspend fun connectAndJoin(gameId: String, playerId: String, playerName: String) {
-        try {
-            this.gameId = gameId
-            this.playerId = playerId
-            this.playerName = playerName
+    fun connectAndJoin(gameId: String, playerId: String, playerName: String) {
+        this.gameId = gameId
+        this.playerId = playerId
+        this.playerName = playerName
 
+        viewModelScope.launch {
             val connected = GameStompClient.connect()
             if (connected) {
                 GameStompClient.subscribeToGameUpdates(
                     onUpdate = { gameResponse = it },
                     scope = viewModelScope
                 )
+                delay(100)
                 GameStompClient.sendJoinRequest(gameId, playerId, playerName)
             } else {
                 error = "Connection to server failed"
             }
-        } catch (e: Exception) {
-            error = "Error: ${e.message}"
         }
     }
 
-    suspend fun startGame() {
-        GameStompClient.sendStartGameRequest(gameId)
-    }
-
-    fun canStartGame(): Boolean {
-        val playerCount = gameResponse?.players?.size ?: 0
-        return playerCount in 3..6
+    fun startGame() {
+        viewModelScope.launch {
+            GameStompClient.sendStartGameRequest(gameId)
+        }
     }
 
     fun hasGameStarted(): Boolean {

@@ -7,27 +7,26 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+//import androidx.lifecycle.viewmodel.compose.viewModel
 import at.klu.client_wizardse2.ui.presentation.viewmodels.MainViewModel
 import kotlinx.coroutines.launch
 
 
 @Composable
-fun LobbyScreen(viewModel: MainViewModel = viewModel()) {
+fun LobbyScreen(viewModel: MainViewModel, onGameStart: () -> Unit) {
     val scope = rememberCoroutineScope()
-    var nameInput by remember { mutableStateOf(TextFieldValue("")) }
+    var nameInput by remember { mutableStateOf("") }
     val players = viewModel.gameResponse?.players ?: emptyList()
     val hasStarted = viewModel.hasGameStarted()
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text("Wizard Lobby", style = MaterialTheme.typography.headlineMedium)
+    // Sobald Spiel gestartet wurde: Bildschirm wechseln
+    LaunchedEffect(hasStarted) {
+        if (hasStarted) {
+            onGameStart()
+        }
+    }
 
+    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         OutlinedTextField(
             value = nameInput,
             onValueChange = { nameInput = it },
@@ -38,34 +37,22 @@ fun LobbyScreen(viewModel: MainViewModel = viewModel()) {
         Button(
             onClick = {
                 scope.launch {
-                    val gameId = "default"
-                    val playerId = viewModel.playerId.ifBlank { java.util.UUID.randomUUID().toString() }
-                    viewModel.connectAndJoin(gameId, playerId, nameInput.text)
+                    val id = viewModel.playerId.ifBlank { java.util.UUID.randomUUID().toString() }
+                    viewModel.connectAndJoin("default", id, nameInput)
                 }
             },
-            enabled = nameInput.text.isNotBlank() && viewModel.gameResponse == null
+            enabled = nameInput.isNotBlank() && viewModel.gameResponse == null
         ) {
             Text("Beitreten")
         }
 
-        if (players.isNotEmpty()) {
-            Text("Spieler in der Lobby:")
-            players.forEach {
-                Text("- ${it.playerName}")
-            }
+        players.forEach { Text("- ${it.playerName}") }
 
-            Button(
-                onClick = {
-                    scope.launch { viewModel.startGame() }
-                },
-                enabled = viewModel.canStartGame() && !hasStarted
-            ) {
-                Text("Spiel starten")
-            }
-        }
-
-        if (hasStarted) {
-            Text("🎮 Spiel läuft!", style = MaterialTheme.typography.bodyLarge)
+        Button(
+            onClick = { scope.launch { viewModel.startGame() } },
+            enabled = true
+        ) {
+            Text("Spiel starten")
         }
     }
 }
