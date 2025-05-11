@@ -26,7 +26,17 @@ fun LobbyScreen(viewModel: MainViewModel, onGameStart: () -> Unit) {
         }
     }
 
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+    Column(modifier = Modifier
+        .fillMaxSize()
+        .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Text(
+            text = "🎩 Wizard",
+            style = MaterialTheme.typography.headlineLarge
+        )
+
         OutlinedTextField(
             value = nameInput,
             onValueChange = { nameInput = it },
