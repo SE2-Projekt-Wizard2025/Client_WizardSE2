@@ -89,6 +89,26 @@ class MainViewModelTest {
         assertEquals(fakeResponse, viewModel.gameResponse)
         assertEquals("Error: Join failed", viewModel.error)
     }
+    @Test
+    fun `sendPrediction should call GameStompClient with correct data`() = runTest {
+
+        val gameId = "game-1"
+        val playerId = "player-1"
+        val prediction = 3
+
+        coEvery { GameStompClient.sendPrediction(any(), any(), any()) } just Runs
+
+        viewModel.sendPrediction(gameId, playerId, prediction)
+
+        coVerify {
+            GameStompClient.sendPrediction(
+                eq(gameId),
+                eq(playerId),
+                eq(prediction)
+            )
+        }
+    }
+
 
     private fun setupMockSuccess() {
         coEvery { GameStompClient.connect() } returns true

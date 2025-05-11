@@ -148,4 +148,20 @@ class GameStompClientTest {
         // Assert: Verify session was used
         coVerify { mockSession.sendText("/app/game/join", any()) }
     }
+
+    @Test
+    fun `sendPrediction should send correct JSON to prediction endpoint`() = testScope.runTest {
+        GameStompClient.setSessionForTesting(mockSession)
+
+        coEvery {
+            mockSession.sendText(eq("/app/game/predict"), any())
+        } returns null
+
+        GameStompClient.sendPrediction("game-1", "player-1", 2)
+
+        coVerify {
+            mockSession.sendText(eq("/app/game/predict"), match { it.contains("2") && it.contains("player-1") })
+        }
+    }
+
 }

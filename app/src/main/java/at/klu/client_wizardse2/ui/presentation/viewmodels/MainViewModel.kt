@@ -7,6 +7,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.launch
+
 
 import at.klu.client_wizardse2.model.response.GameResponse
 import at.klu.client_wizardse2.network.GameStompClient
@@ -35,6 +37,11 @@ class MainViewModel @Inject constructor() : ViewModel() {
             }
         } catch (e: Exception) {
             error = "Error: ${e.message}"
+        }
+    }
+    fun sendPrediction(gameId: String, playerId: String, prediction: Int) {
+        viewModelScope.launch {
+            GameStompClient.sendPrediction(gameId, playerId, prediction)
         }
     }
 }
