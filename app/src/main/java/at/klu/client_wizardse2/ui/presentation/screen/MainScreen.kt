@@ -31,6 +31,13 @@ fun MainScreen() {
             viewModel = viewModel,
             onGameStart = { currentScreen = Screen.Deal }
         )
-        Screen.Deal -> CardDealScreen(viewModel = viewModel)
+        Screen.Deal -> CardDealScreen(
+            viewModel = viewModel,
+            onPredictionComplete = { currentScreen = Screen.Game }
+        )
+        Screen.Game -> {
+            //später finaler Spielscreen
+            Text("Spiel läuft...")
+        }
     }
 }

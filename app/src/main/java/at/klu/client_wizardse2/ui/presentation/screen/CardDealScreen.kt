@@ -11,11 +11,15 @@ import androidx.compose.ui.Alignment
 import at.klu.client_wizardse2.model.response.dto.CardDto
 import at.klu.client_wizardse2.ui.presentation.viewmodels.MainViewModel
 import androidx.compose.ui.graphics.Color
+import kotlinx.coroutines.launch
 
 @Composable
-fun CardDealScreen(viewModel: MainViewModel) {
+fun CardDealScreen(viewModel: MainViewModel, onPredictionComplete: () -> Unit) {
     val handCards = viewModel.gameResponse?.handCards ?: emptyList()
     val trumpCard = viewModel.gameResponse?.trumpCard
+    var predictionInput by remember { mutableStateOf("") }
+    val scope = rememberCoroutineScope()
+
 
     Column(
         modifier = Modifier
@@ -43,6 +47,32 @@ fun CardDealScreen(viewModel: MainViewModel) {
                     CardView(card)
                 }
             }
+        }
+        // 📝 Vorhersage-Eingabe
+        OutlinedTextField(
+            value = predictionInput,
+            onValueChange = { predictionInput = it.filter { c -> c.isDigit() } },
+            label = { Text("Stich-Vorhersage") },
+            singleLine = true
+        )
+
+        Button(
+            onClick = {
+                val prediction = predictionInput.toIntOrNull()
+                if (prediction != null) {
+                    scope.launch {
+                        viewModel.sendPrediction(
+                            gameId = viewModel.gameId,
+                            playerId = viewModel.playerId,
+                            prediction = prediction
+                        )
+                        onPredictionComplete()
+                    }
+                }
+            },
+            enabled = predictionInput.isNotBlank()
+        ) {
+            Text("Weiter")
         }
     }
 }
