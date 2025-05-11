@@ -114,7 +114,8 @@ object GameStompClient {
         }?.launchIn(scope)
     }
     suspend fun sendStartGameRequest(gameId: String) {
-        session?.sendText("/app/game/start", gameId)
+        val jsonGameId = "\"$gameId\""
+        session?.sendText("/app/game/start", jsonGameId)
     }
 
     // Only for Testing:
