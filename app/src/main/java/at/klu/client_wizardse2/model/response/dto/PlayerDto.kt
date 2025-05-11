@@ -9,5 +9,5 @@ data class PlayerDto(
     val score: Int,
     val ready: Boolean,
     val tricksWon: Int = 0,
-    val prediction: Int = 0
+    val prediction: Int? = 0
 )
