@@ -5,5 +5,6 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class CardDto(
     val color: String,
-    val value: String
+    val value: String,
+    val type: String
 )

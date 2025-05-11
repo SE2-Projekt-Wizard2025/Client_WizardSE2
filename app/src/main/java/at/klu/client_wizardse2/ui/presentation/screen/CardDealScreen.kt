@@ -10,26 +10,35 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.Alignment
 import at.klu.client_wizardse2.model.response.dto.CardDto
 import at.klu.client_wizardse2.ui.presentation.viewmodels.MainViewModel
+import androidx.compose.ui.graphics.Color
 
 @Composable
 fun CardDealScreen(viewModel: MainViewModel) {
     val handCards = viewModel.gameResponse?.handCards ?: emptyList()
+    val trumpCard = viewModel.gameResponse?.trumpCard
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("🎴 Deine Handkarten", style = MaterialTheme.typography.headlineMedium)
+
+        if (trumpCard != null) {
+            Text("🃏 Trumpfkarte", style = MaterialTheme.typography.headlineSmall)
+            CardView(trumpCard)
+        } else {
+            Text("Noch keine Trumpfkarte bekannt.", style = MaterialTheme.typography.bodyMedium)
+        }
+
+        // Handkarten
+        Text("🎴 Deine Handkarte${if (handCards.size > 1) "n" else ""}", style = MaterialTheme.typography.headlineSmall)
 
         if (handCards.isEmpty()) {
             Text("Keine Karten erhalten oder noch nicht verteilt.")
         } else {
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(handCards) { card ->
                     CardView(card)
                 }
@@ -40,10 +49,19 @@ fun CardDealScreen(viewModel: MainViewModel) {
 
 @Composable
 fun CardView(card: CardDto) {
+    val backgroundColor = when (card.color?.uppercase()) {
+        "RED" -> Color.Red
+        "BLUE" -> Color.Blue
+        "GREEN" -> Color.Green
+        "YELLOW" -> Color.Yellow
+        else -> Color.LightGray
+    }
+
     Card(
         modifier = Modifier
             .width(80.dp)
             .height(120.dp),
+        colors = CardDefaults.cardColors(containerColor = backgroundColor),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column(
@@ -53,8 +71,23 @@ fun CardView(card: CardDto) {
             verticalArrangement = Arrangement.SpaceBetween,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(text = card.color ?: "?", style = MaterialTheme.typography.labelMedium)
-            Text(text = card.value ?: "?", style = MaterialTheme.typography.titleLarge)
+            Text(
+                text = when (card.type) {
+                    "WIZARD" -> "Wizard"
+                    "JESTER" -> "Narr"
+                    else -> card.color ?: "?"
+                },
+                style = MaterialTheme.typography.labelMedium,
+                color = Color.White
+            )
+            Text(
+                text = when (card.type) {
+                    "WIZARD", "JESTER" -> ""
+                    else -> card.value ?: "?"
+                },
+                style = MaterialTheme.typography.titleLarge,
+                color = Color.White
+            )
         }
     }
 }

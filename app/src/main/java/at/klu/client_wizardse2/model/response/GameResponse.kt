@@ -10,5 +10,6 @@ data class GameResponse(
     val currentPlayerId: String? = null,
     val players: List<PlayerDto>,
     val handCards: List<CardDto>,
-    val lastPlayedCard: String? = null
+    val lastPlayedCard: String? = null,
+    val trumpCard: CardDto? = null
 )
