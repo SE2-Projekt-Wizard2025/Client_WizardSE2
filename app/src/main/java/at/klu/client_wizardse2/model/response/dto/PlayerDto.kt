@@ -7,5 +7,10 @@ data class PlayerDto(
     val playerId: String,
     val playerName: String,
     val score: Int,
-    val ready: Boolean
+    val ready: Boolean,
+
+    val tricksWon: Int = 0,
+    //val prediction: Int? = 0
+
+    val prediction: Int?= null
 )

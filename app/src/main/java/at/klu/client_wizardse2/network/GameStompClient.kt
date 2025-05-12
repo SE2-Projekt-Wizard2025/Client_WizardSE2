@@ -2,6 +2,7 @@ package at.klu.client_wizardse2.network
 
 import android.util.Log
 import at.klu.client_wizardse2.model.request.GameRequest
+import at.klu.client_wizardse2.model.request.PredictionRequest
 import at.klu.client_wizardse2.model.response.GameResponse
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -79,6 +80,12 @@ object GameStompClient {
         val jsonBody = json.encodeToString(GameRequest.serializer(), request)
         session?.sendText("/app/game/join", jsonBody)
     }
+    suspend fun sendPrediction(gameId: String, playerId: String, prediction: Int) {
+        val request = PredictionRequest(gameId, playerId, prediction)
+        val jsonBody = json.encodeToString(PredictionRequest.serializer(), request)
+        session?.sendText("/app/game/predict", jsonBody)
+    }
+
 
     /**
      * Subscribes to game state updates from the server via the STOMP topic `/topic/game`.
@@ -112,6 +119,10 @@ object GameStompClient {
                 e.printStackTrace()
             }
         }?.launchIn(scope)
+    }
+    suspend fun sendStartGameRequest(gameId: String) {
+        val jsonGameId = "\"$gameId\""
+        session?.sendText("/app/game/start", jsonGameId)
     }
 
     // Only for Testing:

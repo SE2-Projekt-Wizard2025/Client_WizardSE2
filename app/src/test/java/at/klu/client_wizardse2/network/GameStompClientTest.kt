@@ -148,4 +148,45 @@ class GameStompClientTest {
         // Assert: Verify session was used
         coVerify { mockSession.sendText("/app/game/join", any()) }
     }
+
+    @Test
+    fun `sendStartGameRequest should send quoted gameId to server`() = testScope.runTest {
+        GameStompClient.setSessionForTesting(mockSession)
+
+        coEvery {
+            mockSession.sendText("/app/game/start", "\"myGameId\"")
+        } returns null
+
+        GameStompClient.sendStartGameRequest("myGameId")
+
+        coVerify {
+            mockSession.sendText(eq("/app/game/start"), eq("\"myGameId\""))
+        }
+    }
+
+    @Test
+    fun `connect should log error and return false if exception is thrown`() = testScope.runTest {
+        coEvery { mockClient.connect(any()) } throws RuntimeException("Boom")
+
+        val result = GameStompClient.connect()
+
+        assertFalse(result)
+        coVerify { Log.e(match { it == "GameStompClient" }, any(), any()) }
+    }
+
+    @Test
+    fun `sendPrediction should send correct JSON to prediction endpoint`() = testScope.runTest {
+        GameStompClient.setSessionForTesting(mockSession)
+
+        coEvery {
+            mockSession.sendText(eq("/app/game/predict"), any())
+        } returns null
+
+        GameStompClient.sendPrediction("game-1", "player-1", 2)
+
+        coVerify {
+            mockSession.sendText(eq("/app/game/predict"), match { it.contains("2") && it.contains("player-1") })
+        }
+    }
+
 }
