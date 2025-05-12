@@ -16,18 +16,19 @@ import at.klu.client_wizardse2.model.response.GameResponse
 import at.klu.client_wizardse2.network.GameStompClient
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import org.jetbrains.annotations.VisibleForTesting
 
 
 class MainViewModel : ViewModel() {
 
     var gameResponse by mutableStateOf<GameResponse?>(null)
-        private set
+        @VisibleForTesting set
 
     var error by mutableStateOf<String?>(null)
         private set
 
     var gameId: String = ""
-        private set
+        @VisibleForTesting set
 
     var playerId: String = ""
         private set
@@ -41,16 +42,20 @@ class MainViewModel : ViewModel() {
         this.playerName = playerName
 
         viewModelScope.launch {
-            val connected = GameStompClient.connect()
-            if (connected) {
-                GameStompClient.subscribeToGameUpdates(
-                    onUpdate = { gameResponse = it },
-                    scope = viewModelScope
-                )
-                delay(100)
-                GameStompClient.sendJoinRequest(gameId, playerId, playerName)
-            } else {
-                error = "Connection to server failed"
+            try {
+                val connected = GameStompClient.connect()
+                if (connected) {
+                    GameStompClient.subscribeToGameUpdates(
+                        onUpdate = { gameResponse = it },
+                        scope = viewModelScope
+                    )
+                    delay(100)
+                    GameStompClient.sendJoinRequest(gameId, playerId, playerName)
+                } else {
+                    error = "Connection to server failed"
+                }
+            } catch (e: Exception) {
+                error = "Error: ${e.message}"
             }
         }
     }
@@ -69,6 +74,7 @@ class MainViewModel : ViewModel() {
     fun sendPrediction(gameId: String, playerId: String, prediction: Int) {
         viewModelScope.launch {
             GameStompClient.sendPrediction(gameId, playerId, prediction)
+
         }
     }
 
