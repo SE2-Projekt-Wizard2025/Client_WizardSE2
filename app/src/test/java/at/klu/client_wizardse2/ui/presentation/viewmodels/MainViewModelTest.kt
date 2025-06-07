@@ -2,6 +2,7 @@ package at.klu.client_wizardse2.ui.presentation.viewmodels
 
 import at.klu.client_wizardse2.model.response.GameResponse
 import at.klu.client_wizardse2.model.response.GameStatus
+import at.klu.client_wizardse2.model.response.dto.PlayerDto
 import at.klu.client_wizardse2.network.GameStompClient
 import io.mockk.*
 import kotlinx.coroutines.Dispatchers
@@ -29,14 +30,15 @@ class MainViewModelTest {
     }
 
     @Test
-    fun `given successful connection when connectAndJoin called then gameResponse is updated`() = runTest {
-        setupMockSuccess()
-        viewModel.connectAndJoin(TEST_GAME_ID, TEST_PLAYER_ID, TEST_PLAYER_NAME)
-        advanceUntilIdle()
+    fun `given successful connection when connectAndJoin called then gameResponse is updated`() =
+        runTest {
+            setupMockSuccess()
+            viewModel.connectAndJoin(TEST_GAME_ID, TEST_PLAYER_ID, TEST_PLAYER_NAME)
+            advanceUntilIdle()
 
-        assertEquals(fakeResponse, viewModel.gameResponse)
-        assertNull(viewModel.error)
-    }
+            assertEquals(fakeResponse, viewModel.gameResponse)
+            assertNull(viewModel.error)
+        }
 
     @Test
     fun `given failed connection when connectAndJoin called then error is set`() = runTest {
@@ -61,38 +63,41 @@ class MainViewModelTest {
     }
 
     @Test
-    fun `given subscribe throws exception when connectAndJoin called then error is set`() = runTest {
-        coEvery { GameStompClient.connect() } returns true
-        coEvery {
-            GameStompClient.subscribeToGameUpdates(onUpdate = any(), scope = any())
-        } throws RuntimeException("Subscription failed")
+    fun `given subscribe throws exception when connectAndJoin called then error is set`() =
+        runTest {
+            coEvery { GameStompClient.connect() } returns true
+            coEvery {
+                GameStompClient.subscribeToGameUpdates(onUpdate = any(), scope = any())
+            } throws RuntimeException("Subscription failed")
 
-        viewModel.connectAndJoin(TEST_GAME_ID, TEST_PLAYER_ID, TEST_PLAYER_NAME)
-        advanceUntilIdle()
+            viewModel.connectAndJoin(TEST_GAME_ID, TEST_PLAYER_ID, TEST_PLAYER_NAME)
+            advanceUntilIdle()
 
-        assertNull(viewModel.gameResponse)
-        assertEquals("Error: Subscription failed", viewModel.error)
-    }
+            assertNull(viewModel.gameResponse)
+            assertEquals("Error: Subscription failed", viewModel.error)
+        }
 
     @Test
-    fun `given sendJoinRequest throws exception when connectAndJoin called then error is set`() = runTest {
-        coEvery { GameStompClient.connect() } returns true
-        coEvery {
-            GameStompClient.subscribeToGameUpdates(onUpdate = any(), scope = any())
-        } answers {
-            val callback = args[0] as (GameResponse) -> Unit
-            callback(fakeResponse)
+    fun `given sendJoinRequest throws exception when connectAndJoin called then error is set`() =
+        runTest {
+            coEvery { GameStompClient.connect() } returns true
+            coEvery {
+                GameStompClient.subscribeToGameUpdates(onUpdate = any(), scope = any())
+            } answers {
+                val callback = args[0] as (GameResponse) -> Unit
+                callback(fakeResponse)
+            }
+            coEvery {
+                GameStompClient.sendJoinRequest(any(), any(), any())
+            } throws RuntimeException("Join failed")
+
+            viewModel.connectAndJoin(TEST_GAME_ID, TEST_PLAYER_ID, TEST_PLAYER_NAME)
+            advanceUntilIdle()
+
+            assertEquals(fakeResponse, viewModel.gameResponse)
+            assertEquals("Error: Join failed", viewModel.error)
         }
-        coEvery {
-            GameStompClient.sendJoinRequest(any(), any(), any())
-        } throws RuntimeException("Join failed")
 
-        viewModel.connectAndJoin(TEST_GAME_ID, TEST_PLAYER_ID, TEST_PLAYER_NAME)
-        advanceUntilIdle()
-
-        assertEquals(fakeResponse, viewModel.gameResponse)
-        assertEquals("Error: Join failed", viewModel.error)
-    }
     @Test
     fun `sendPrediction should call GameStompClient with correct data`() = runTest {
 
@@ -113,6 +118,7 @@ class MainViewModelTest {
             )
         }
     }
+
     @Test
     fun `hasGameStarted should return true when game status is PLAYING`() {
         val viewModel = MainViewModel()
@@ -185,5 +191,37 @@ class MainViewModelTest {
         )
     }
 
+    @Test
+    fun `scoreboard should be updated correctly`() = runTest {
+        val viewModel = MainViewModel()
 
+        val sampleScoreboard = listOf(
+            PlayerDto(
+                playerId = "p1",
+                playerName = "Alice",
+                score = 30,
+                ready = true,
+                tricksWon = 2,
+                prediction = 2
+            ),
+            PlayerDto(
+                playerId = "p2",
+                playerName = "Bob",
+                score = 40,
+                ready = true,
+                tricksWon = 1,
+                prediction = 1
+            )
+        )
+
+        val scoreboardField = MainViewModel::class.java.getDeclaredField("scoreboard")
+        scoreboardField.isAccessible = true
+        scoreboardField.set(viewModel, sampleScoreboard)
+
+
+        assertEquals(2, viewModel.scoreboard.size)
+        assertEquals("Alice", viewModel.scoreboard[0].playerName)
+        assertEquals(40, viewModel.scoreboard[1].score)
+    }
 }
+

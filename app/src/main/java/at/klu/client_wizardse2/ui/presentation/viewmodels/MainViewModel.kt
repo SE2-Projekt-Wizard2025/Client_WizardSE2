@@ -13,6 +13,7 @@ import kotlinx.coroutines.launch
 
 
 import at.klu.client_wizardse2.model.response.GameResponse
+import at.klu.client_wizardse2.model.response.dto.PlayerDto
 import at.klu.client_wizardse2.network.GameStompClient
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -36,6 +37,10 @@ class MainViewModel : ViewModel() {
     var playerName: String = ""
         private set
 
+    var scoreboard by mutableStateOf<List<PlayerDto>>(emptyList())
+        private set
+
+
     fun connectAndJoin(gameId: String, playerId: String, playerName: String) {
         this.gameId = gameId
         this.playerId = playerId
@@ -51,12 +56,23 @@ class MainViewModel : ViewModel() {
                     )
                     delay(100)
                     GameStompClient.sendJoinRequest(gameId, playerId, playerName)
+                    subscribeToScoreboard(gameId)
                 } else {
                     error = "Connection to server failed"
                 }
             } catch (e: Exception) {
                 error = "Error: ${e.message}"
             }
+        }
+    }
+
+    fun subscribeToScoreboard(gameId: String) {
+        viewModelScope.launch {
+            GameStompClient.subscribeToScoreboard(
+                gameId = gameId,
+                onScoreboardReceived = { newBoard -> scoreboard = newBoard },
+                scope = viewModelScope
+            )
         }
     }
 

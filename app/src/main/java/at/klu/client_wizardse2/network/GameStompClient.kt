@@ -4,6 +4,9 @@ import android.util.Log
 import at.klu.client_wizardse2.model.request.GameRequest
 import at.klu.client_wizardse2.model.request.PredictionRequest
 import at.klu.client_wizardse2.model.response.GameResponse
+import at.klu.client_wizardse2.model.response.dto.PlayerDto
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.launchIn
@@ -129,4 +132,22 @@ object GameStompClient {
     fun setSessionForTesting(mock: StompSession) {
         session = mock
     }
+
+    suspend fun subscribeToScoreboard(
+        gameId: String,
+        onScoreboardReceived: (List<PlayerDto>) -> Unit,
+        scope: CoroutineScope = CoroutineScope(Dispatchers.Main)
+    ) {
+        val topic = "/topic/game/$gameId/scoreboard"
+        session?.subscribeText(topic)?.onEach { message ->
+            try {
+                val type = object : TypeToken<List<PlayerDto>>() {}.type
+                val scoreboard = Gson().fromJson<List<PlayerDto>>(message, type)
+                onScoreboardReceived(scoreboard)
+            } catch (e: Exception) {
+                Log.e(TAG, "Fehler beim Parsen des Scoreboards: ${e.message}", e)
+            }
+        }?.launchIn(scope)
+    }
+
 }
