@@ -33,6 +33,15 @@ class GameStompClientTest {
         mockStaticHelpers()
         resetGameStompClient()
     }
+    private fun mockStaticHelpers() {
+        mockkStatic("org.hildan.krossbow.stomp.StompSessionKt")
+        mockkStatic(Log::class)
+
+        // Mocke alle Varianten von Log.d und Log.e
+        every { Log.d(any(), any()) } returns 0
+        every { Log.e(any(), any()) } returns 0
+        every { Log.e(any(), any(), any()) } returns 0
+    }
 
     @After
     fun tearDown() {
@@ -41,12 +50,6 @@ class GameStompClientTest {
         unmockkStatic(Log::class)
     }
 
-    private fun mockStaticHelpers() {
-        mockkStatic("org.hildan.krossbow.stomp.StompSessionKt")
-        mockkStatic(Log::class)
-        every { Log.d(any(), any()) } returns 0
-        every { Log.e(any(), any(), any()) } returns 0
-    }
 
     private fun resetGameStompClient() {
         GameStompClient.apply {
@@ -239,6 +242,47 @@ class GameStompClientTest {
 
         // Assert
         assertTrue("No updates should be received", receivedResponses.isEmpty())
+    }
+
+    @Test
+    fun `subscribeToGameUpdates should catch JSON parsing exception`() = runTest {
+        val invalidJson = """{ invalid json """
+        val flow = flowOf(invalidJson)
+
+        coEvery { mockSession.subscribeText("/topic/game/p1") } returns flow
+        GameStompClient.setSessionForTesting(mockSession)
+
+        val received = mutableListOf<GameResponse>()
+
+        GameStompClient.subscribeToGameUpdates(
+            playerId = "p1",
+            onUpdate = { received.add(it) },
+            scope = this // verwende TestScope, um launchIn auszuführen
+        )
+
+        advanceUntilIdle()
+
+        assertTrue(received.isEmpty()) // nothing should be added
+    }
+
+    @Test
+    fun `subscribeToGameUpdates should use default CoroutineScope`() = runTest {
+        val json = """{"gameId":"g1","status":"PLAYING","currentPlayerId":"p1","players":[],"handCards":[],"lastPlayedCard":null}"""
+        val flow = flowOf(json)
+
+        coEvery { mockSession.subscribeText("/topic/game/p1") } returns flow
+        GameStompClient.setSessionForTesting(mockSession)
+
+        val received = mutableListOf<GameResponse>()
+
+        // rufe Methode auf OHNE "scope =" → Default-Parameter wird genutzt
+        GameStompClient.subscribeToGameUpdates(
+            playerId = "p1",
+            onUpdate = { received.add(it) }
+        )
+
+        advanceUntilIdle()
+        assertEquals(1, received.size)
     }
 
 }
