@@ -98,13 +98,15 @@ class GameStompClientTest {
     fun `subscribeToGameUpdates should invoke callback with deserialized GameResponse`() = testScope.runTest {
         val testJson = """{"gameId":"g1","status":"PLAYING","currentPlayerId":"p1","players":[],"handCards":[],"lastPlayedCard":null}"""
         val flow = flowOf(testJson)
+        val testPlayerId = "p1"
 
-        coEvery { mockSession.subscribeText("/topic/game") } returns flow
+        coEvery { mockSession.subscribeText("/topic/game/$testPlayerId") } returns flow
         GameStompClient.setSessionForTesting(mockSession)
 
         val responses = mutableListOf<GameResponse>()
 
         GameStompClient.subscribeToGameUpdates(
+            playerId = testPlayerId,
             onUpdate = { responses.add(it) },
             scope = this
         )
@@ -115,17 +117,20 @@ class GameStompClientTest {
         assertEquals("g1", responses.first().gameId)
     }
 
+
     @Test
     fun `subscribeToGameUpdates should trigger catch block on invalid JSON`() = testScope.runTest {
         val invalidJson = """{ invalid json """
         val flow = flowOf(invalidJson)
 
+        // Passe den Topic an den tatsächlichen (nicht-playerId-spezifischen) Code an
         coEvery { mockSession.subscribeText("/topic/game") } returns flow
         GameStompClient.setSessionForTesting(mockSession)
 
         val responses = mutableListOf<GameResponse>()
 
         GameStompClient.subscribeToGameUpdates(
+            playerId = "p1", // bleibt übergeben, aber wird intern ignoriert
             onUpdate = { responses.add(it) },
             scope = this
         )
