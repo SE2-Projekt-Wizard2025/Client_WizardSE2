@@ -194,4 +194,51 @@ class GameStompClientTest {
         }
     }
 
+    @Test
+    fun `sendJoinRequest should do nothing if session is null`() = runTest {
+        // Arrange
+        GameStompClient.setSessionForTesting(null)
+
+        // Act & Assert: No exception should be thrown
+        GameStompClient.sendJoinRequest("game-id", "player-id", "test-name")
+    }
+
+    @Test
+    fun `sendPrediction should do nothing if session is null`() = runTest {
+        // Arrange
+        GameStompClient.setSessionForTesting(null)
+
+        // Act & Assert: No exception should be thrown
+        GameStompClient.sendPrediction("game-id", "player-id", 1)
+    }
+
+    @Test
+    fun `sendStartGameRequest should do nothing if session is null`() = runTest {
+        // Arrange
+        GameStompClient.setSessionForTesting(null)
+
+        // Act & Assert: No exception should be thrown
+        GameStompClient.sendStartGameRequest("game-id")
+    }
+
+    @Test
+    fun `subscribeToGameUpdates should not crash on null session`() = runTest {
+        // Arrange
+        GameStompClient.setSessionForTesting(null)
+
+        val receivedResponses = mutableListOf<GameResponse>()
+
+        // Act
+        GameStompClient.subscribeToGameUpdates(
+            playerId = "player-id",
+            onUpdate = { receivedResponses.add(it) },
+            scope = this
+        )
+
+        advanceUntilIdle()
+
+        // Assert
+        assertTrue("No updates should be received", receivedResponses.isEmpty())
+    }
+
 }

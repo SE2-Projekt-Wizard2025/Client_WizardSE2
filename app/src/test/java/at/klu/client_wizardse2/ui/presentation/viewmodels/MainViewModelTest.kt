@@ -209,5 +209,61 @@ class MainViewModelTest {
         )
     }
 
+    @Test
+    fun `gameId, playerId, playerName are correctly assigned after connectAndJoin`() = runTest {
+        coEvery { GameStompClient.connect() } returns false
+
+        viewModel.connectAndJoin("myGame", "player42", "Lina")
+        advanceUntilIdle()
+
+        assertEquals("myGame", viewModel.gameId)
+        assertEquals("player42", viewModel.playerId)
+        assertEquals("Lina", viewModel.playerName)
+    }
+
+    @Test
+    fun `startGame should not crash when gameId is empty`() = runTest {
+        coEvery { GameStompClient.sendStartGameRequest(any()) } just Runs
+
+        viewModel.gameId = "" // explizit leer
+        viewModel.startGame()
+        advanceUntilIdle()
+
+        coVerify { GameStompClient.sendStartGameRequest(eq("")) }
+    }
+
+    @Test
+    fun `connectAndJoin does not crash when session is null`() = runTest {
+        // Simuliere connect() als erfolgreich, aber ohne Session gesetzt
+        coEvery { GameStompClient.connect() } returns true
+        coEvery {
+            GameStompClient.subscribeToGameUpdates(playerId = any(), onUpdate = any(), scope = any())
+        } just Runs
+        coEvery {
+            GameStompClient.sendJoinRequest(any(), any(), any())
+        } just Runs
+
+        viewModel.connectAndJoin(TEST_GAME_ID, TEST_PLAYER_ID, TEST_PLAYER_NAME)
+        advanceUntilIdle()
+
+        assertNull(viewModel.error) // Kein Fehler, aber keine Response erwartet
+    }
+
+    @Test
+    fun `connectAndJoin handles empty playerId gracefully`() = runTest {
+        coEvery { GameStompClient.connect() } returns true
+        coEvery {
+            GameStompClient.subscribeToGameUpdates(playerId = any(), onUpdate = any(), scope = any())
+        } just Runs
+        coEvery { GameStompClient.sendJoinRequest(any(), any(), any()) } just Runs
+
+        viewModel.connectAndJoin(TEST_GAME_ID, "", TEST_PLAYER_NAME)
+        advanceUntilIdle()
+
+        assertEquals(TEST_GAME_ID, viewModel.gameId)
+        assertEquals("", viewModel.playerId)
+        assertEquals(TEST_PLAYER_NAME, viewModel.playerName)
+    }
+
 
 }

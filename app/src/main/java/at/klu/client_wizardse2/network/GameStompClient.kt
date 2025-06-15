@@ -132,7 +132,7 @@ object GameStompClient {
     }
 
     // Only for Testing:
-    fun setSessionForTesting(mock: StompSession) {
+    fun setSessionForTesting(mock: StompSession?) {
         session = mock
     }
 }
