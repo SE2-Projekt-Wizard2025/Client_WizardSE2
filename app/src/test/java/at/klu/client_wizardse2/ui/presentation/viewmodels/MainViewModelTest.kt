@@ -223,5 +223,59 @@ class MainViewModelTest {
         assertEquals("Alice", viewModel.scoreboard[0].playerName)
         assertEquals(40, viewModel.scoreboard[1].score)
     }
+
+    @Test
+    fun `playCard should call GameStompClient with correct data`() = runTest {
+        val testGameId = "game-test-123"
+        val testPlayerId = "player-test-abc"
+        val testCardString = "RED_10"
+
+        viewModel.gameId = testGameId
+        viewModel.playerId = testPlayerId
+
+        coEvery { GameStompClient.sendPlayCardRequest(any(), any(), any()) } just Runs
+
+        viewModel.playCard(testCardString)
+        advanceUntilIdle()
+
+        coVerify {
+            GameStompClient.sendPlayCardRequest(
+                eq(testGameId),
+                eq(testPlayerId),
+                eq(testCardString)
+            )
+        }
+        assertNull(viewModel.error)
+    }
+
+    @Test
+    fun `playCard should set error if gameId is not set`() = runTest {
+        viewModel.gameId = ""
+        viewModel.playerId = TEST_PLAYER_ID
+
+        coJustRun { GameStompClient.sendPlayCardRequest(any(), any(), any()) }
+
+        viewModel.playCard("RED_5")
+        advanceUntilIdle()
+
+        assertNotNull(viewModel.error)
+        assertEquals("Game ID or Player ID not set. Cannot play card.", viewModel.error)
+        coVerify(exactly = 0) { GameStompClient.sendPlayCardRequest(any(), any(), any()) }
+    }
+
+    @Test
+    fun `playCard should set error if playerId is not set`() = runTest {
+        viewModel.gameId = TEST_GAME_ID
+        viewModel.playerId = "" // PlayerId ist nicht gesetzt
+
+        coJustRun { GameStompClient.sendPlayCardRequest(any(), any(), any()) }
+
+        viewModel.playCard("BLUE_7")
+        advanceUntilIdle()
+
+        assertNotNull(viewModel.error)
+        assertEquals("Game ID or Player ID not set. Cannot play card.", viewModel.error)
+        coVerify(exactly = 0) { GameStompClient.sendPlayCardRequest(any(), any(), any()) }
+    }
 }
 

@@ -32,7 +32,6 @@ class MainViewModel : ViewModel() {
         @VisibleForTesting set
 
     var playerId: String = ""
-        private set
 
     var playerName: String = ""
         private set

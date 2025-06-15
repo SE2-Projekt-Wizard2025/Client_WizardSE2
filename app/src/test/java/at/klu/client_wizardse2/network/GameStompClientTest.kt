@@ -16,6 +16,8 @@ import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
+import io.mockk.coEvery
+import io.mockk.coVerify
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class GameStompClientTest {
@@ -186,6 +188,33 @@ class GameStompClientTest {
 
         coVerify {
             mockSession.sendText(eq("/app/game/predict"), match { it.contains("2") && it.contains("player-1") })
+        }
+    }
+
+    @Test
+    fun `sendPlayCardRequest should send correct JSON to destination`() = testScope.runTest {
+        GameStompClient.setSessionForTesting(mockSession)
+        val gameId = "game-xyz"
+        val playerId = "player-abc"
+        val card = "WIZARD"
+
+        coJustRun {
+            mockSession.sendText(eq("/app/game/play"), any())
+        }
+
+        GameStompClient.sendPlayCardRequest(gameId, playerId, card)
+        advanceUntilIdle()
+
+
+        coVerify {
+            mockSession.sendText(
+                eq("/app/game/play"),
+                match { jsonString ->
+                    jsonString.contains("\"gameId\":\"$gameId\"") &&
+                            jsonString.contains("\"playerId\":\"$playerId\"") &&
+                            jsonString.contains("\"card\":\"$card\"")
+                }
+            )
         }
     }
 
