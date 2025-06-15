@@ -94,4 +94,15 @@ class MainViewModel : ViewModel() {
         }
     }
 
+    fun playCard(cardString: String) {
+        viewModelScope.launch {
+
+            if (gameId.isNotEmpty() && playerId.isNotEmpty()) {
+                GameStompClient.sendPlayCardRequest(gameId, playerId, cardString)
+            } else {
+                error = "Game ID or Player ID not set. Cannot play card."
+            }
+        }
+    }
+
 }

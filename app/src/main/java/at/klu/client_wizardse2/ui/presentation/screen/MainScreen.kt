@@ -1,5 +1,8 @@
 package at.klu.client_wizardse2.ui.presentation.screen
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -7,8 +10,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -30,6 +35,9 @@ import at.klu.client_wizardse2.ui.presentation.viewmodels.MainViewModel
 import at.klu.client_wizardse2.ui.presentation.screen.Screen
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
+import at.klu.client_wizardse2.model.response.dto.CardDto
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -100,6 +108,33 @@ fun ScoreboardView(scoreboard: List<PlayerDto>, currentPlayerName: String) {
 }
 
 @Composable
+fun CardView(card: CardDto, onCardClick: (String) -> Unit = {}) {
+    val actualCardString = when (card.type) {
+        "WIZARD" -> "WIZARD"
+        "JESTER" -> "JESTER"
+        else -> "${card.color}_${card.value}"
+    }
+
+    Box(
+        modifier = Modifier
+            .padding(4.dp)
+            .clickable { onCardClick(actualCardString) } //Hinzufügen des Click-Handlers
+            .border(1.dp, Color.Gray, RoundedCornerShape(4.dp))
+            .background(Color.LightGray)
+            .size(width = 70.dp, height = 100.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(text = card.color, style = MaterialTheme.typography.bodySmall)
+            Text(text = card.value, style = MaterialTheme.typography.bodyMedium)
+            if (card.type != "NUMBER") {
+                Text(text = card.type, style = MaterialTheme.typography.bodySmall)
+            }
+        }
+    }
+}
+
+@Composable
 fun SimpleGameScreen(viewModel: MainViewModel) {
     val gameResponse = viewModel.gameResponse
     val players = gameResponse?.players ?: emptyList()
@@ -120,12 +155,27 @@ fun SimpleGameScreen(viewModel: MainViewModel) {
             gameResponse?.trumpCard?.let { CardView(it) } ?: Text("- Keiner -")
         }
 
-        Text("Hier werden die gespielten Karten angezeigt")
+        Column(horizontalAlignment = Alignment.CenterHorizontally) { // Container,Last Played Card
+            Text("Zuletzt gespielt:")
+            gameResponse?.lastPlayedCard?.let { lastCardString ->
+                 val lastPlayedCardDto = lastCardString.toCardDto()
+                lastPlayedCardDto?.let { CardView(it) } ?: Text(lastCardString)
+            } ?: Text("-")
+        }
 
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text("Deine Hand:", style = MaterialTheme.typography.titleMedium)
             LazyRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                items(gameResponse?.handCards ?: emptyList()) { card -> CardView(card) }
+                items(gameResponse?.handCards ?: emptyList()) { card ->
+                    val isMyTurn = viewModel.playerId == gameResponse?.currentPlayerId
+                    if (isMyTurn) {
+                        CardView(card) { cardString ->
+                            viewModel.playCard(cardString)
+                        }
+                    } else {
+                        CardView(card)
+                    }
+                }
             }
         }
 
@@ -152,6 +202,20 @@ fun GameEndScreen(viewModel: MainViewModel) {
         }
         Spacer(Modifier.height(32.dp))
         ScoreboardView(scoreboard = viewModel.scoreboard, currentPlayerName = viewModel.playerName)
+    }
+}
+
+fun String.toCardDto(): CardDto? {
+    return when {
+        equals("WIZARD", ignoreCase = true) -> CardDto(color = "SPECIAL", value = "0", type = "WIZARD")
+        equals("JESTER", ignoreCase = true) -> CardDto(color = "SPECIAL", value = "0", type = "JESTER")
+        contains("_") -> {
+            val parts = this.split("_")
+            if (parts.size == 2) {
+                CardDto(color = parts[0], value = parts[1], type = "NUMBER")
+            } else null
+        }
+        else -> null
     }
 }
 

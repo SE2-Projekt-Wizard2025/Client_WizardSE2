@@ -128,6 +128,16 @@ object GameStompClient {
         session?.sendText("/app/game/start", jsonGameId)
     }
 
+    suspend fun sendPlayCardRequest(gameId: String, playerId: String, card: String) {
+        val request = GameRequest(
+            gameId = gameId,
+            playerId = playerId,
+            card = card
+        )
+        val jsonBody = json.encodeToString(GameRequest.serializer(), request)
+        session?.sendText("/app/game/play", jsonBody)
+    }
+
     // Only for Testing:
     fun setSessionForTesting(mock: StompSession) {
         session = mock
