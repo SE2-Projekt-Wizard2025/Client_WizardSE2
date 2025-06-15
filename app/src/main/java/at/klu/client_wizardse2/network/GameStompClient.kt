@@ -108,14 +108,20 @@ object GameStompClient {
      * ```
      */
     suspend fun subscribeToGameUpdates(
+        playerId: String,
         onUpdate: (GameResponse) -> Unit,
         scope: CoroutineScope = CoroutineScope(Dispatchers.Main)
     ) {
-        session?.subscribeText("/topic/game")?.onEach { message ->
+        val topic = "/topic/game/$playerId"
+        Log.d("StompDebug", "Subscribing to topic: $topic")
+
+        session?.subscribeText(topic)?.onEach { message ->
             try {
                 val response = json.decodeFromString(GameResponse.serializer(), message)
+                Log.d("StompDebug", "GameResponse empfangen: $response")
                 onUpdate(response)
             } catch (e: Exception) {
+                Log.e("StompDebug", "Fehler beim Parsen: ${e.message}")
                 e.printStackTrace()
             }
         }?.launchIn(scope)
@@ -126,7 +132,7 @@ object GameStompClient {
     }
 
     // Only for Testing:
-    fun setSessionForTesting(mock: StompSession) {
+    fun setSessionForTesting(mock: StompSession?) {
         session = mock
     }
 }
