@@ -3,6 +3,7 @@ package at.klu.client_wizardse2.ui.presentation.viewmodels
 import android.util.Log
 import at.klu.client_wizardse2.model.response.GameResponse
 import at.klu.client_wizardse2.model.response.GameStatus
+import at.klu.client_wizardse2.model.response.dto.PlayerDto
 import at.klu.client_wizardse2.network.GameStompClient
 import io.mockk.*
 import kotlinx.coroutines.Dispatchers
@@ -11,10 +12,6 @@ import kotlinx.coroutines.test.*
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
-import kotlin.reflect.jvm.isAccessible
-import kotlin.reflect.KMutableProperty1
-import kotlin.reflect.full.*
-import kotlin.reflect.jvm.isAccessible
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class MainViewModelTest {
@@ -35,6 +32,7 @@ class MainViewModelTest {
     @Test
     fun `given successful connection when connectAndJoin called then gameResponse is updated`() = runTest {
         coEvery { GameStompClient.connect() } returns true
+        @Suppress("UNCHECKED_CAST")
         coEvery {
             GameStompClient.subscribeToGameUpdates(
                 playerId = any(),
@@ -53,6 +51,7 @@ class MainViewModelTest {
         assertEquals(fakeResponse, viewModel.gameResponse)
         assertNull(viewModel.error)
     }
+
 
     @Test
     fun `given failed connection when connectAndJoin called then error is set`() = runTest {
@@ -80,11 +79,7 @@ class MainViewModelTest {
     fun `given subscribe throws exception when connectAndJoin called then error is set`() = runTest {
         coEvery { GameStompClient.connect() } returns true
         coEvery {
-            GameStompClient.subscribeToGameUpdates(
-                playerId = any(),
-                onUpdate = any(),
-                scope = any()
-            )
+            GameStompClient.subscribeToGameUpdates(onUpdate = any(), scope = any(), playerId = any())
         } throws RuntimeException("Subscription failed")
 
         viewModel.connectAndJoin(TEST_GAME_ID, TEST_PLAYER_ID, TEST_PLAYER_NAME)
@@ -97,6 +92,7 @@ class MainViewModelTest {
     @Test
     fun `given sendJoinRequest throws exception when connectAndJoin called then error is set`() = runTest {
         coEvery { GameStompClient.connect() } returns true
+        @Suppress("UNCHECKED_CAST")
         coEvery {
             GameStompClient.subscribeToGameUpdates(
                 playerId = any(),
@@ -117,9 +113,9 @@ class MainViewModelTest {
         assertEquals("Error: Join failed", viewModel.error)
     }
 
+
     @Test
     fun `sendPrediction should call GameStompClient with correct data`() = runTest {
-
         val gameId = "game-1"
         val playerId = "player-1"
         val prediction = 3
@@ -137,6 +133,7 @@ class MainViewModelTest {
             )
         }
     }
+
     @Test
     fun `hasGameStarted should return true when game status is PLAYING`() {
         val viewModel = MainViewModel()
@@ -167,7 +164,6 @@ class MainViewModelTest {
         assertFalse(viewModel.hasGameStarted())
     }
 
-    @OptIn(ExperimentalCoroutinesApi::class)
     @Test
     fun `startGame should call GameStompClient with correct gameId`() = runTest {
         val viewModel = MainViewModel()
@@ -185,6 +181,7 @@ class MainViewModelTest {
 
     private fun setupMockSuccess() {
         coEvery { GameStompClient.connect() } returns true
+        @Suppress("UNCHECKED_CAST")
         coEvery {
             GameStompClient.subscribeToGameUpdates(playerId = any(), onUpdate = any(), scope = any())
         } answers {
@@ -207,6 +204,89 @@ class MainViewModelTest {
             handCards = emptyList(),
             lastPlayedCard = null
         )
+    }
+
+    @Test
+    fun `scoreboard should be updated correctly`() = runTest {
+        val viewModel = MainViewModel()
+
+        val sampleScoreboard = listOf(
+            PlayerDto(
+                playerId = "p1",
+                playerName = "Alice",
+                score = 30,
+                ready = true,
+                tricksWon = 2,
+                prediction = 2
+            ),
+            PlayerDto(
+                playerId = "p2",
+                playerName = "Bob",
+                score = 40,
+                ready = true,
+                tricksWon = 1,
+                prediction = 1
+            )
+        )
+        viewModel.scoreboard = sampleScoreboard
+
+        assertEquals(2, viewModel.scoreboard.size)
+        assertEquals("Alice", viewModel.scoreboard[0].playerName)
+        assertEquals(40, viewModel.scoreboard[1].score)
+    }
+
+    @Test
+    fun `playCard should call GameStompClient with correct data`() = runTest {
+        val testGameId = "game-test-123"
+        val testPlayerId = "player-test-abc"
+        val testCardString = "RED_10"
+
+        viewModel.gameId = testGameId
+        viewModel.playerId = testPlayerId
+
+        coEvery { GameStompClient.sendPlayCardRequest(any(), any(), any()) } just Runs
+
+        viewModel.playCard(testCardString)
+        advanceUntilIdle()
+
+        coVerify {
+            GameStompClient.sendPlayCardRequest(
+                eq(testGameId),
+                eq(testPlayerId),
+                eq(testCardString)
+            )
+        }
+        assertNull(viewModel.error)
+    }
+
+    @Test
+    fun `playCard should set error if gameId is not set`() = runTest {
+        viewModel.gameId = ""
+        viewModel.playerId = TEST_PLAYER_ID
+
+        coJustRun { GameStompClient.sendPlayCardRequest(any(), any(), any()) }
+
+        viewModel.playCard("RED_5")
+        advanceUntilIdle()
+
+        assertNotNull(viewModel.error)
+        assertEquals("Game ID or Player ID not set. Cannot play card.", viewModel.error)
+        coVerify(exactly = 0) { GameStompClient.sendPlayCardRequest(any(), any(), any()) }
+    }
+
+    @Test
+    fun `playCard should set error if playerId is not set`() = runTest {
+        viewModel.gameId = TEST_GAME_ID
+        viewModel.playerId = "" // PlayerId ist nicht gesetzt
+
+        coJustRun { GameStompClient.sendPlayCardRequest(any(), any(), any()) }
+
+        viewModel.playCard("BLUE_7")
+        advanceUntilIdle()
+
+        assertNotNull(viewModel.error)
+        assertEquals("Game ID or Player ID not set. Cannot play card.", viewModel.error)
+        coVerify(exactly = 0) { GameStompClient.sendPlayCardRequest(any(), any(), any()) }
     }
 
     @Test
@@ -264,6 +344,4 @@ class MainViewModelTest {
         assertEquals("", viewModel.playerId)
         assertEquals(TEST_PLAYER_NAME, viewModel.playerName)
     }
-
-
 }

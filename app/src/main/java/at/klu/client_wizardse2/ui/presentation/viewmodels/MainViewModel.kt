@@ -14,6 +14,7 @@ import kotlinx.coroutines.launch
 
 
 import at.klu.client_wizardse2.model.response.GameResponse
+import at.klu.client_wizardse2.model.response.dto.PlayerDto
 import at.klu.client_wizardse2.network.GameStompClient
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -32,10 +33,14 @@ class MainViewModel : ViewModel() {
         @VisibleForTesting set
 
     var playerId: String = ""
-        private set
 
     var playerName: String = ""
         private set
+
+    var scoreboard by mutableStateOf<List<PlayerDto>>(emptyList())
+        @VisibleForTesting
+        internal set
+
 
     fun connectAndJoin(gameId: String, playerId: String, playerName: String) {
         this.gameId = gameId
@@ -54,12 +59,23 @@ class MainViewModel : ViewModel() {
                     )
                     delay(100)
                     GameStompClient.sendJoinRequest(gameId, playerId, playerName)
+                    subscribeToScoreboard(gameId)
                 } else {
                     error = "Connection to server failed"
                 }
             } catch (e: Exception) {
                 error = "Error: ${e.message}"
             }
+        }
+    }
+
+    fun subscribeToScoreboard(gameId: String) {
+        viewModelScope.launch {
+            GameStompClient.subscribeToScoreboard(
+                gameId = gameId,
+                onScoreboardReceived = { newBoard -> scoreboard = newBoard },
+                scope = viewModelScope
+            )
         }
     }
 
@@ -78,6 +94,17 @@ class MainViewModel : ViewModel() {
         viewModelScope.launch {
             GameStompClient.sendPrediction(gameId, playerId, prediction)
 
+        }
+    }
+
+    fun playCard(cardString: String) {
+        viewModelScope.launch {
+
+            if (gameId.isNotEmpty() && playerId.isNotEmpty()) {
+                GameStompClient.sendPlayCardRequest(gameId, playerId, cardString)
+            } else {
+                error = "Game ID or Player ID not set. Cannot play card."
+            }
         }
     }
 
