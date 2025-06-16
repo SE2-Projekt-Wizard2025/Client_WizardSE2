@@ -12,10 +12,6 @@ import kotlinx.coroutines.test.*
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
-import kotlin.reflect.jvm.isAccessible
-import kotlin.reflect.KMutableProperty1
-import kotlin.reflect.full.*
-import kotlin.reflect.jvm.isAccessible
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class MainViewModelTest {
@@ -34,9 +30,9 @@ class MainViewModelTest {
     }
 
     @Test
-
     fun `given successful connection when connectAndJoin called then gameResponse is updated`() = runTest {
         coEvery { GameStompClient.connect() } returns true
+        @Suppress("UNCHECKED_CAST")
         coEvery {
             GameStompClient.subscribeToGameUpdates(
                 playerId = any(),
@@ -80,48 +76,46 @@ class MainViewModelTest {
     }
 
     @Test
-    fun `given subscribe throws exception when connectAndJoin called then error is set`() =
-        runTest {
-            coEvery { GameStompClient.connect() } returns true
-            coEvery {
-                GameStompClient.subscribeToGameUpdates(onUpdate = any(), scope = any())
-            } throws RuntimeException("Subscription failed")
+    fun `given subscribe throws exception when connectAndJoin called then error is set`() = runTest {
+        coEvery { GameStompClient.connect() } returns true
+        coEvery {
+            GameStompClient.subscribeToGameUpdates(onUpdate = any(), scope = any(), playerId = any())
+        } throws RuntimeException("Subscription failed")
 
-            viewModel.connectAndJoin(TEST_GAME_ID, TEST_PLAYER_ID, TEST_PLAYER_NAME)
-            advanceUntilIdle()
+        viewModel.connectAndJoin(TEST_GAME_ID, TEST_PLAYER_ID, TEST_PLAYER_NAME)
+        advanceUntilIdle()
 
-            assertNull(viewModel.gameResponse)
-            assertEquals("Error: Subscription failed", viewModel.error)
-        }
+        assertNull(viewModel.gameResponse)
+        assertEquals("Error: Subscription failed", viewModel.error)
+    }
 
     @Test
-    fun `given sendJoinRequest throws exception when connectAndJoin called then error is set`() = runTest {
-        coEvery { GameStompClient.connect() } returns true
-        coEvery {
-            GameStompClient.subscribeToGameUpdates(
-                playerId = any(),
-                onUpdate = any(),
-                scope = any()
-            )
-        } answers {
-            val callback = args[1] as (GameResponse) -> Unit
-            callback(fakeResponse)
-        }
-        coEvery { GameStompClient.sendJoinRequest(any(), any(), any()) } throws RuntimeException("Join failed")
-
-        viewModel.connectAndJoin(TEST_GAME_ID, TEST_PLAYER_ID, TEST_PLAYER_NAME)
-        advanceUntilIdle()
-
-        // Es wurde vorher eine gültige GameResponse durch den Callback gesetzt
-        assertEquals(fakeResponse, viewModel.gameResponse)
-        assertEquals("Error: Join failed", viewModel.error)
-    })
+    fun `given sendJoinRequest throws exception when connectAndJoin called then error is set`() = runTest {
+        coEvery { GameStompClient.connect() } returns true
+        @Suppress("UNCHECKED_CAST")
+        coEvery {
+            GameStompClient.subscribeToGameUpdates(
+                playerId = any(),
+                onUpdate = any(),
+                scope = any()
+            )
+        } answers {
+            val callback = args[1] as (GameResponse) -> Unit
+            callback(fakeResponse)
         }
+        coEvery { GameStompClient.sendJoinRequest(any(), any(), any()) } throws RuntimeException("Join failed")
+
+        viewModel.connectAndJoin(TEST_GAME_ID, TEST_PLAYER_ID, TEST_PLAYER_NAME)
+        advanceUntilIdle()
+
+        // Es wurde vorher eine gültige GameResponse durch den Callback gesetzt
+        assertEquals(fakeResponse, viewModel.gameResponse)
+        assertEquals("Error: Join failed", viewModel.error)
+    }
 
 
     @Test
     fun `sendPrediction should call GameStompClient with correct data`() = runTest {
-
         val gameId = "game-1"
         val playerId = "player-1"
         val prediction = 3
@@ -170,7 +164,6 @@ class MainViewModelTest {
         assertFalse(viewModel.hasGameStarted())
     }
 
-    @OptIn(ExperimentalCoroutinesApi::class)
     @Test
     fun `startGame should call GameStompClient with correct gameId`() = runTest {
         val viewModel = MainViewModel()
@@ -188,6 +181,7 @@ class MainViewModelTest {
 
     private fun setupMockSuccess() {
         coEvery { GameStompClient.connect() } returns true
+        @Suppress("UNCHECKED_CAST")
         coEvery {
             GameStompClient.subscribeToGameUpdates(playerId = any(), onUpdate = any(), scope = any())
         } answers {
@@ -234,11 +228,7 @@ class MainViewModelTest {
                 prediction = 1
             )
         )
-
-        val scoreboardField = MainViewModel::class.java.getDeclaredField("scoreboard")
-        scoreboardField.isAccessible = true
-        scoreboardField.set(viewModel, sampleScoreboard)
-
+        viewModel.scoreboard = sampleScoreboard
 
         assertEquals(2, viewModel.scoreboard.size)
         assertEquals("Alice", viewModel.scoreboard[0].playerName)
@@ -291,6 +281,15 @@ class MainViewModelTest {
 
         coJustRun { GameStompClient.sendPlayCardRequest(any(), any(), any()) }
 
+        viewModel.playCard("BLUE_7")
+        advanceUntilIdle()
+
+        assertNotNull(viewModel.error)
+        assertEquals("Game ID or Player ID not set. Cannot play card.", viewModel.error)
+        coVerify(exactly = 0) { GameStompClient.sendPlayCardRequest(any(), any(), any()) }
+    }
+
+    @Test
     fun `gameId, playerId, playerName are correctly assigned after connectAndJoin`() = runTest {
         coEvery { GameStompClient.connect() } returns false
 
@@ -345,15 +344,4 @@ class MainViewModelTest {
         assertEquals("", viewModel.playerId)
         assertEquals(TEST_PLAYER_NAME, viewModel.playerName)
     }
-
-
-
-        viewModel.playCard("BLUE_7")
-        advanceUntilIdle()
-
-        assertNotNull(viewModel.error)
-        assertEquals("Game ID or Player ID not set. Cannot play card.", viewModel.error)
-        coVerify(exactly = 0) { GameStompClient.sendPlayCardRequest(any(), any(), any()) }
-    }
 }
-

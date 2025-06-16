@@ -3,7 +3,7 @@
   <component name="deploymentTargetSelector">
     <selectionStates>
       <SelectionState runConfigName="app">
-        <option name="selectionMode" value="DIALOG" />
+        <option name="selectionMode" value="DROPDOWN" />
         <DropdownSelection timestamp="2025-06-15T08:13:23.617459200Z">
           <Target type="DEFAULT_BOOT">
             <handle>
@@ -11,6 +11,7 @@
             </handle>
           </Target>
         </DropdownSelection>
+        <DialogSelection />
       </SelectionState>
     </selectionStates>
   </component>

@@ -38,7 +38,8 @@ class MainViewModel : ViewModel() {
         private set
 
     var scoreboard by mutableStateOf<List<PlayerDto>>(emptyList())
-        private set
+        @VisibleForTesting
+        internal set
 
 
     fun connectAndJoin(gameId: String, playerId: String, playerName: String) {
