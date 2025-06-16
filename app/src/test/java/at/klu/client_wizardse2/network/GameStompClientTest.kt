@@ -2,6 +2,7 @@ package at.klu.client_wizardse2.network
 
 import android.util.Log
 import at.klu.client_wizardse2.model.response.GameResponse
+import at.klu.client_wizardse2.model.response.dto.PlayerDto
 import io.mockk.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -313,4 +314,55 @@ class GameStompClientTest {
 
     }
 
-}}
+}
+    @Test
+    fun `sendPlayCardRequest should do nothing if session is null`() = runTest {
+        GameStompClient.setSessionForTesting(null)
+        GameStompClient.sendPlayCardRequest("game-id", "player-id", "RED_5")
+    }
+
+    @Test
+    fun `subscribeToScoreboard should invoke callback on successful message`() = testScope.runTest {
+        val testJson = """[{"playerId":"p1","playerName":"Alice","score":100,"ready":true,"tricksWon":1,"prediction":1}]"""
+        val flow = flowOf(testJson)
+        val gameId = "game1"
+
+        coEvery { mockSession.subscribeText("/topic/game/$gameId/scoreboard") } returns flow
+        GameStompClient.setSessionForTesting(mockSession)
+
+        var receivedScoreboard: List<PlayerDto>? = null
+        GameStompClient.subscribeToScoreboard(
+            gameId = gameId,
+            onScoreboardReceived = { receivedScoreboard = it },
+            scope = this
+        )
+
+        advanceUntilIdle()
+
+        assertNotNull(receivedScoreboard)
+        assertEquals(1, receivedScoreboard?.size)
+        assertEquals("Alice", receivedScoreboard?.first()?.playerName)
+    }
+
+    @Test
+    fun `subscribeToScoreboard should log error on json parsing exception`() = testScope.runTest {
+        val invalidJson = "this is not valid json"
+        val flow = flowOf(invalidJson)
+        val gameId = "game1"
+
+        coEvery { mockSession.subscribeText("/topic/game/$gameId/scoreboard") } returns flow
+        GameStompClient.setSessionForTesting(mockSession)
+
+        var receivedScoreboard: List<PlayerDto>? = null
+        GameStompClient.subscribeToScoreboard(
+            gameId = gameId,
+            onScoreboardReceived = { receivedScoreboard = it },
+            scope = this
+        )
+
+        advanceUntilIdle()
+
+        assertNull(receivedScoreboard)
+        coVerify { Log.e(eq("GameStompClient"), any(), any()) }
+    }
+}
