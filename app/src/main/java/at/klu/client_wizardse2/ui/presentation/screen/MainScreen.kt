@@ -48,18 +48,14 @@ fun MainScreen() {
 
     val gameResponse = viewModel.gameResponse
     LaunchedEffect(gameResponse) {
-        val status = gameResponse?.status?.name
-        val round = gameResponse?.currentRound ?: 0
-
-        if (status == "ENDED" && currentScreen != Screen.GameEnd) {
-           //spiel vorbei EndBildschirm
-            currentScreen = Screen.GameEnd
-
-        } else if (status == "PLAYING" && round > previousRound) {
-            //neue Runde, stichvorhersage wieder
-            currentScreen = Screen.Deal
+        when (gameResponse?.status?.name) {
+            "PREDICTION" -> currentScreen = Screen.Deal
+            "PLAYING" -> currentScreen = Screen.Game
+            "ENDED" -> currentScreen = Screen.GameEnd
+            else -> {} // z. B. LOBBY
         }
-        previousRound = round
+
+        previousRound = gameResponse?.currentRound ?: previousRound
     }
 
     when (currentScreen) {
