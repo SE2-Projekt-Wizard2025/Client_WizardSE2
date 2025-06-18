@@ -1,6 +1,6 @@
 package at.klu.client_wizardse2.ui.presentation.screen
 
-import androidx.compose.foundation.clickable
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -116,7 +116,7 @@ fun CardDealScreen(viewModel: MainViewModel, onPredictionComplete: () -> Unit) {
 
 @Composable
 fun CardView(card: CardDto) {
-    val backgroundColor = when (card.color?.uppercase()) {
+    val backgroundColor = when (card.color.uppercase()) {
         "RED" -> Color.Red
         "BLUE" -> Color.Blue
         "GREEN" -> Color.Green
@@ -124,7 +124,7 @@ fun CardView(card: CardDto) {
         else -> Color.LightGray
     }
 
-    val textColor = if (card.color?.uppercase() in listOf("YELLOW", "GREEN")) Color.Black else Color.White
+    val textColor = if (card.color.uppercase() in listOf("YELLOW", "GREEN")) Color.Black else Color.White
 
     val actualCardString = when (card.type) {
         "WIZARD" -> "WIZARD"
@@ -154,7 +154,7 @@ fun CardView(card: CardDto) {
                 text = when (card.type) {
                     "WIZARD" -> "Wizard"
                     "JESTER" -> "Narr"
-                    else -> card.color ?: "?"
+                    else -> card.color
                 },
                 style = MaterialTheme.typography.labelMedium,
                 color = textColor
@@ -162,7 +162,7 @@ fun CardView(card: CardDto) {
             Text(
                 text = when (card.type) {
                     "WIZARD", "JESTER" -> ""
-                    else -> card.value ?: "?"
+                    else -> card.value
                 },
                 style = MaterialTheme.typography.titleLarge,
                 color = textColor

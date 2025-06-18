@@ -143,7 +143,8 @@ class MainViewModelTest {
             currentPlayerId = null,
             players = emptyList(),
             handCards = emptyList(),
-            lastPlayedCard = null
+            lastPlayedCard = null,
+            lastTrickWinnerId = null
         )
 
         assertTrue(viewModel.hasGameStarted())
@@ -158,7 +159,8 @@ class MainViewModelTest {
             currentPlayerId = null,
             players = emptyList(),
             handCards = emptyList(),
-            lastPlayedCard = null
+            lastPlayedCard = null,
+            lastTrickWinnerId = null
         )
 
         assertFalse(viewModel.hasGameStarted())
@@ -202,7 +204,8 @@ class MainViewModelTest {
             currentPlayerId = TEST_PLAYER_ID,
             players = emptyList(),
             handCards = emptyList(),
-            lastPlayedCard = null
+            lastPlayedCard = null,
+            lastTrickWinnerId = null
         )
     }
 
@@ -344,4 +347,90 @@ class MainViewModelTest {
         assertEquals("", viewModel.playerId)
         assertEquals(TEST_PLAYER_NAME, viewModel.playerName)
     }
+
+    @Test
+    fun `clearLastTrickWinner should nullify lastTrickWinnerId`() {
+        val viewModel = MainViewModel()
+        viewModel.gameResponse = GameResponse(
+            gameId = "game1",
+            status = GameStatus.PLAYING,
+            currentPlayerId = "p1",
+            players = emptyList(),
+            handCards = emptyList(),
+            lastPlayedCard = null,
+            lastTrickWinnerId = "p2"
+        )
+
+        viewModel.clearLastTrickWinner()
+        assertNull(viewModel.gameResponse?.lastTrickWinnerId)
+    }
+
+    @Test
+    fun `clearLastTrickWinner should set lastTrickWinnerId to null`() {
+        val responseWithWinner = fakeResponse.copy(lastTrickWinnerId = "p1")
+        viewModel.gameResponse = responseWithWinner
+
+        viewModel.clearLastTrickWinner()
+
+        assertNull(viewModel.gameResponse?.lastTrickWinnerId)
+    }
+
+    @Test
+    fun `sendPrediction should set specific error when sum matches round`() = runTest {
+        coEvery { GameStompClient.sendPrediction(any(), any(), any()) } throws Exception("exakt die Anzahl der Stiche")
+
+        val result = viewModel.sendPrediction("game-id", "player-id", 2)
+
+        assertFalse(result)
+        assertEquals(
+            "! Vorhersage nicht erlaubt – die Summe entspricht der Rundenzahl. Gib bitte einen anderen Wert ein.",
+            viewModel.error
+        )
+    }
+
+    @Test
+    fun `connectAndJoin sets error if error is received from error topic`() = runTest {
+        coEvery { GameStompClient.connect() } returns true
+        coEvery {
+            GameStompClient.subscribeToGameUpdates(playerId = any(), onUpdate = any(), scope = any())
+        } just Runs
+        coEvery {
+            GameStompClient.subscribeToErrors(playerId = any(), onError = captureLambda(), scope = any())
+        } answers {
+            lambda<(String) -> Unit>().invoke("Test error")
+        }
+        coEvery { GameStompClient.sendJoinRequest(any(), any(), any()) } just Runs
+        coEvery { GameStompClient.subscribeToScoreboard(any(), any(), any()) } just Runs
+
+        viewModel.connectAndJoin("game1", "p1", "Alice")
+        advanceUntilIdle()
+
+        assertEquals("Test error", viewModel.error)
+    }
+
+    @Test
+    fun `hasSubmittedPrediction should not reset if currentRound stays the same`() = runTest {
+        coEvery { GameStompClient.connect() } returns true
+
+        // Fake-Antworten mit identischem Round-Wert
+        coEvery {
+            GameStompClient.subscribeToGameUpdates(playerId = any(), onUpdate = any(), scope = any())
+        } answers {
+            val callback = args[1] as (GameResponse) -> Unit
+            // Erstes Update → initialer Zustand
+            callback(fakeResponse.copy(currentRound = 2))
+            // Manuell: Benutzer hat eine Vorhersage abgegeben
+            viewModel.hasSubmittedPrediction = true
+            // Zweites Update → gleiche Runde => sollte hasSubmittedPrediction nicht zurücksetzen
+            callback(fakeResponse.copy(currentRound = 2))
+        }
+
+        coEvery { GameStompClient.sendJoinRequest(any(), any(), any()) } just Runs
+
+        viewModel.connectAndJoin(TEST_GAME_ID, TEST_PLAYER_ID, TEST_PLAYER_NAME)
+        advanceUntilIdle()
+
+        assertTrue("Vorhersage sollte nicht zurückgesetzt werden, wenn sich die Runde nicht ändert", viewModel.hasSubmittedPrediction)
+    }
+
 }

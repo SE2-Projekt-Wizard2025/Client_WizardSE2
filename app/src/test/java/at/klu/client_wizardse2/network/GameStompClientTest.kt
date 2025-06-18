@@ -102,7 +102,7 @@ class GameStompClientTest {
 
     @Test
     fun `subscribeToGameUpdates should invoke callback with deserialized GameResponse`() = testScope.runTest {
-        val testJson = """{"gameId":"g1","status":"PLAYING","currentPlayerId":"p1","players":[],"handCards":[],"lastPlayedCard":null}"""
+        val testJson = """{"gameId":"g1","status":"PLAYING","currentPlayerId":"p1","players":[],"handCards":[],"lastPlayedCard":null, "lastTrickWinnerId": null}"""
         val flow = flowOf(testJson)
         val testPlayerId = "p1"
 
@@ -365,4 +365,72 @@ class GameStompClientTest {
         assertNull(receivedScoreboard)
         coVerify { Log.e(eq("GameStompClient"), any(), any()) }
     }
+
+    @Test
+    fun `subscribeToErrors should invoke error callback on message`() = testScope.runTest {
+        val testMessage = "Zug nicht erlaubt"
+        val flow = flowOf(testMessage)
+        val playerId = "p1"
+
+        coEvery { mockSession.subscribeText("/topic/errors/$playerId") } returns flow
+        GameStompClient.setSessionForTesting(mockSession)
+
+        var errorResult: String? = null
+
+        GameStompClient.subscribeToErrors(
+            playerId = playerId,
+            onError = { errorResult = it },
+            scope = this
+        )
+
+        advanceUntilIdle()
+        assertEquals(testMessage, errorResult)
+    }
+
+    @Test
+    fun `subscribeToErrors should not crash on null session`() = testScope.runTest {
+        GameStompClient.setSessionForTesting(null)
+        GameStompClient.subscribeToErrors(
+            playerId = "p1",
+            onError = {},
+            scope = this
+        )
+        //No exception expected
+    }
+
+    @Test
+    fun `subscribeToErrors should handle multiple error messages`() = testScope.runTest {
+        val errors = listOf("Fehler 1", "Fehler 2")
+        val flow = flowOf(*errors.toTypedArray())
+        coEvery { mockSession.subscribeText("/topic/errors/player1") } returns flow
+        GameStompClient.setSessionForTesting(mockSession)
+
+        val received = mutableListOf<String>()
+        GameStompClient.subscribeToErrors("player1", { received.add(it) }, this)
+
+        advanceUntilIdle()
+        assertEquals(errors, received)
+    }
+
+    @Test
+    fun `subscribeToScoreboard should handle empty list`() = testScope.runTest {
+        val testJson = "[]"
+        val flow = flowOf(testJson)
+
+        coEvery { mockSession.subscribeText("/topic/game/game1/scoreboard") } returns flow
+        GameStompClient.setSessionForTesting(mockSession)
+
+        var result: List<PlayerDto>? = null
+        GameStompClient.subscribeToScoreboard("game1", { result = it }, this)
+
+        advanceUntilIdle()
+
+        assertNotNull(result)
+        assertTrue(result!!.isEmpty())
+    }
+
+
+
+
+
 }
