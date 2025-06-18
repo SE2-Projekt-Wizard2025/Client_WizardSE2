@@ -181,7 +181,7 @@ class MainViewModelTest {
     }
 
 
-    private fun setupMockSuccess() {
+    /*private fun setupMockSuccess() {
         coEvery { GameStompClient.connect() } returns true
         @Suppress("UNCHECKED_CAST")
         coEvery {
@@ -191,7 +191,7 @@ class MainViewModelTest {
             callback(fakeResponse)
         }
         coEvery { GameStompClient.sendJoinRequest(any(), any(), any()) } returns Unit
-    }
+    }*/
 
     companion object {
         private const val TEST_GAME_ID = "game1"

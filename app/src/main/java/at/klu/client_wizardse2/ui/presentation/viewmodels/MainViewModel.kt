@@ -17,7 +17,6 @@ import at.klu.client_wizardse2.model.response.GameResponse
 import at.klu.client_wizardse2.model.response.dto.PlayerDto
 import at.klu.client_wizardse2.network.GameStompClient
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import org.jetbrains.annotations.VisibleForTesting
 
 

@@ -258,7 +258,7 @@ fun SimpleGameScreen(viewModel: MainViewModel) {
         }
         val showWinnerOkButton = gameResponse?.handCards?.isEmpty() == true &&
                 gameResponse.lastTrickWinnerId == viewModel.playerId &&
-                gameResponse.status?.name == "PLAYING"
+                gameResponse.status.name == "PLAYING"
 
         if (showWinnerOkButton) {
             Spacer(modifier = Modifier.height(16.dp))
