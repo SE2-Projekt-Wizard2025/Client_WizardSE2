@@ -12,5 +12,6 @@ data class GameResponse(
     val handCards: List<CardDto>,
     val lastPlayedCard: String? = null,
     val trumpCard: CardDto? = null,
-    val currentRound: Int = 0
+    val currentRound: Int = 0,
+    val currentPredictionPlayerId: String? = null
 )

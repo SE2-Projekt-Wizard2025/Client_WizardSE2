@@ -16,10 +16,17 @@ import kotlinx.coroutines.launch
 @Composable
 fun CardDealScreen(viewModel: MainViewModel, onPredictionComplete: () -> Unit) {
     val handCards = viewModel.gameResponse?.handCards ?: emptyList()
-    val trumpCard = viewModel.gameResponse?.trumpCard
+    val response = viewModel.gameResponse
+    val trumpCard = response?.trumpCard
+    val currentPredictionPlayerId = response?.currentPredictionPlayerId
+    val isMyTurn = currentPredictionPlayerId == viewModel.playerId
     var predictionInput by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
+    val hasSubmittedPrediction = remember { mutableStateOf(false) }
 
+    val currentPredictionPlayerName = viewModel.gameResponse?.players
+        ?.find { it.playerId == currentPredictionPlayerId }
+        ?.playerName ?: "Unbekannt"
 
     Column(
         modifier = Modifier
@@ -53,8 +60,18 @@ fun CardDealScreen(viewModel: MainViewModel, onPredictionComplete: () -> Unit) {
             value = predictionInput,
             onValueChange = { predictionInput = it.filter { c -> c.isDigit() } },
             label = { Text("Stich-Vorhersage") },
-            singleLine = true
+            singleLine = true,
+            enabled = isMyTurn && !hasSubmittedPrediction.value
         )
+
+
+
+        if (!isMyTurn) {
+            Text("🔄 $currentPredictionPlayerName ist gerade an der Reihe mit der Vorhersage", color = Color.Gray)
+        }
+        if (isMyTurn && hasSubmittedPrediction.value) {
+            Text("✅ Vorhersage gesendet! Warte auf andere Spieler …", color = Color.Gray)
+        }
 
         Button(
             onClick = {
@@ -66,14 +83,15 @@ fun CardDealScreen(viewModel: MainViewModel, onPredictionComplete: () -> Unit) {
                             playerId = viewModel.playerId,
                             prediction = prediction
                         )
-                        onPredictionComplete()
+                        hasSubmittedPrediction.value = true
                     }
                 }
             },
-            enabled = predictionInput.isNotBlank()
+            enabled = predictionInput.isNotBlank() && isMyTurn && !hasSubmittedPrediction.value
         ) {
             Text("Weiter")
         }
+
     }
 }
 
