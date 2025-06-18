@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -47,33 +48,54 @@ fun MainScreen() {
     var previousRound by remember { mutableStateOf(0) }
 
     val gameResponse = viewModel.gameResponse
-    LaunchedEffect(gameResponse) {
-        when (gameResponse?.status?.name) {
-            "PREDICTION" -> currentScreen = Screen.Deal
-            "PLAYING" -> currentScreen = Screen.Game
-            "ENDED" -> currentScreen = Screen.GameEnd
-            else -> {} // z. B. LOBBY
+    LaunchedEffect(gameResponse?.status?.name, gameResponse?.currentRound) {
+        val status = gameResponse?.status?.name
+        val newRound = gameResponse?.currentRound ?: return@LaunchedEffect
+
+        if (status == "PREDICTION" && newRound != null) {
+            //Nur wenn bereits eine Runde gespielt wurde
+            if (newRound > previousRound && previousRound > 0) {
+                viewModel.roundJustEnded = true
+            } else {
+                currentScreen = Screen.Deal
+            }
+        } else if (status == "PLAYING") {
+            currentScreen = Screen.Game
+        } else if (status == "ENDED") {
+            currentScreen = Screen.GameEnd
         }
 
-        previousRound = gameResponse?.currentRound ?: previousRound
+        previousRound = newRound
     }
 
-    when (currentScreen) {
-        Screen.Lobby -> LobbyScreen(
+    if (viewModel.roundJustEnded) {
+        RoundSummaryScreen(
             viewModel = viewModel,
-            onGameStart = {
-                previousRound=1
-                currentScreen = Screen.Deal }
+            onContinue = {
+                viewModel.roundJustEnded = false
+                currentScreen = Screen.Deal
+            }
         )
-        Screen.Deal -> CardDealScreen(
-            viewModel = viewModel,
-            onPredictionComplete = { currentScreen = Screen.Game }
-        )
-        Screen.Game -> {
-            SimpleGameScreen(viewModel = viewModel)
-        }
-        Screen.GameEnd -> {
-            GameEndScreen(viewModel = viewModel)
+    } else {
+        when (currentScreen) {
+            Screen.Lobby -> LobbyScreen(
+                viewModel = viewModel,
+                onGameStart = {
+                    previousRound = 0
+                    viewModel.roundJustEnded = false
+                    currentScreen = Screen.Deal
+                }
+            )
+            Screen.Deal -> CardDealScreen(
+                viewModel = viewModel,
+                onPredictionComplete = { currentScreen = Screen.Game }
+            )
+            Screen.Game -> {
+                SimpleGameScreen(viewModel = viewModel)
+            }
+            Screen.GameEnd -> {
+                GameEndScreen(viewModel = viewModel)
+            }
         }
     }
 }
@@ -137,6 +159,16 @@ fun SimpleGameScreen(viewModel: MainViewModel) {
     val currentPlayer = remember(gameResponse?.currentPlayerId, players) {
         players.find { it.playerId == gameResponse?.currentPlayerId }
     }
+    val currentRound = gameResponse?.currentRound ?: 0
+    var lastKnownRound by remember { mutableStateOf(currentRound) }
+    var showNextRoundDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(currentRound) {
+        if (currentRound > lastKnownRound) {
+            showNextRoundDialog = true
+            lastKnownRound = currentRound
+        }
+    }
 
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),
@@ -159,6 +191,17 @@ fun SimpleGameScreen(viewModel: MainViewModel) {
             } ?: Text("-")
         }
 
+        gameResponse?.lastTrickWinnerId?.let { winnerId ->
+            val winnerName = players.find { it.playerId == winnerId }?.playerName
+            if (!winnerName.isNullOrEmpty()) {
+                Text(
+                    text = "🎉 $winnerName hat den letzten Stich gewonnen!",
+                    color = Color(0xFF4CAF50), // Grün
+                    style = MaterialTheme.typography.bodyLarge
+                )
+            }
+        }
+
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text("Deine Hand:", style = MaterialTheme.typography.titleMedium)
             LazyRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -176,6 +219,28 @@ fun SimpleGameScreen(viewModel: MainViewModel) {
         }
 
         ScoreboardView(scoreboard = viewModel.scoreboard, currentPlayerName = viewModel.playerName)
+        if (showNextRoundDialog) {
+            Spacer(modifier = Modifier.height(16.dp))
+            Text("🕓 Neue Runde beginnt!", style = MaterialTheme.typography.titleMedium)
+
+            Button(onClick = {
+                showNextRoundDialog = false
+            }) {
+                Text("OK – weiter")
+            }
+        }
+        val showWinnerOkButton = gameResponse?.handCards?.isEmpty() == true &&
+                gameResponse.lastTrickWinnerId == viewModel.playerId &&
+                gameResponse.status?.name == "PLAYING"
+
+        if (showWinnerOkButton) {
+            Spacer(modifier = Modifier.height(16.dp))
+            Button(onClick = {
+                viewModel.clearLastTrickWinner()
+            }) {
+                Text("OK – Weiter zur nächsten Runde")
+            }
+        }
     }
 }
 
@@ -214,4 +279,31 @@ fun String.toCardDto(): CardDto? {
         else -> null
     }
 }
+
+@Composable
+fun RoundSummaryScreen(viewModel: MainViewModel, onContinue: () -> Unit) {
+    val winner = viewModel.scoreboard.maxByOrNull { it.tricksWon }
+    val round = viewModel.gameResponse?.currentRound ?: 0
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text("🔁 Runde $round beendet!", style = MaterialTheme.typography.headlineMedium)
+        Spacer(Modifier.height(12.dp))
+        if (winner != null) {
+            Text("${winner.playerName} hat die Runde gewonnen mit ${winner.tricksWon} Stichen.")
+        } else {
+            Text("Runde beendet.")
+        }
+        Spacer(Modifier.height(24.dp))
+        Button(onClick = onContinue) {
+            Text("Weiter zur Vorhersage")
+        }
+    }
+}
+
 

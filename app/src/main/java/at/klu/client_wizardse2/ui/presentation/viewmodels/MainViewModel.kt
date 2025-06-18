@@ -41,6 +41,8 @@ class MainViewModel : ViewModel() {
         @VisibleForTesting
         internal set
 
+    var roundJustEnded by mutableStateOf(false)
+
 
     fun connectAndJoin(gameId: String, playerId: String, playerName: String) {
         this.gameId = gameId
@@ -106,6 +108,10 @@ class MainViewModel : ViewModel() {
                 error = "Game ID or Player ID not set. Cannot play card."
             }
         }
+    }
+
+    fun clearLastTrickWinner() {
+        gameResponse = gameResponse?.copy(lastTrickWinnerId = null)
     }
 
 }

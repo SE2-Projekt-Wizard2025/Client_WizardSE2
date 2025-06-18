@@ -13,5 +13,6 @@ data class GameResponse(
     val lastPlayedCard: String? = null,
     val trumpCard: CardDto? = null,
     val currentRound: Int = 0,
-    val currentPredictionPlayerId: String? = null
+    val currentPredictionPlayerId: String? = null,
+    val lastTrickWinnerId: String?
 )
