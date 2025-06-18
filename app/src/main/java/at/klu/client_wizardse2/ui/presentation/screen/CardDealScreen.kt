@@ -22,11 +22,14 @@ fun CardDealScreen(viewModel: MainViewModel, onPredictionComplete: () -> Unit) {
     val isMyTurn = currentPredictionPlayerId == viewModel.playerId
     var predictionInput by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
-    val hasSubmittedPrediction = remember { mutableStateOf(false) }
+    val hasSubmittedPrediction = viewModel.hasSubmittedPrediction
 
     val currentPredictionPlayerName = viewModel.gameResponse?.players
         ?.find { it.playerId == currentPredictionPlayerId }
         ?.playerName ?: "Unbekannt"
+
+    val error = viewModel.error
+
 
     Column(
         modifier = Modifier
@@ -49,11 +52,15 @@ fun CardDealScreen(viewModel: MainViewModel, onPredictionComplete: () -> Unit) {
         if (handCards.isEmpty()) {
             Text("Keine Karten erhalten oder noch nicht verteilt.")
         } else {
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            LazyRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 items(handCards) { card ->
                     CardView(card)
                 }
             }
+
         }
         // 📝 Vorhersage-Eingabe
         OutlinedTextField(
@@ -61,7 +68,7 @@ fun CardDealScreen(viewModel: MainViewModel, onPredictionComplete: () -> Unit) {
             onValueChange = { predictionInput = it.filter { c -> c.isDigit() } },
             label = { Text("Stich-Vorhersage") },
             singleLine = true,
-            enabled = isMyTurn && !hasSubmittedPrediction.value
+            enabled = isMyTurn && !viewModel.hasSubmittedPrediction
         )
 
 
@@ -69,27 +76,37 @@ fun CardDealScreen(viewModel: MainViewModel, onPredictionComplete: () -> Unit) {
         if (!isMyTurn) {
             Text("🔄 $currentPredictionPlayerName ist gerade an der Reihe mit der Vorhersage", color = Color.Gray)
         }
-        if (isMyTurn && hasSubmittedPrediction.value) {
+        if (isMyTurn && viewModel.hasSubmittedPrediction) {
             Text("✅ Vorhersage gesendet! Warte auf andere Spieler …", color = Color.Gray)
         }
+
 
         Button(
             onClick = {
                 val prediction = predictionInput.toIntOrNull()
                 if (prediction != null) {
                     scope.launch {
-                        viewModel.sendPrediction(
+                        val success = viewModel.sendPrediction(
                             gameId = viewModel.gameId,
                             playerId = viewModel.playerId,
                             prediction = prediction
                         )
-                        hasSubmittedPrediction.value = true
+                        if (success) {
+                            viewModel.hasSubmittedPrediction = true
+                        } else {
+                            viewModel.hasSubmittedPrediction= false
+                            predictionInput = ""
+                        }
                     }
                 }
             },
-            enabled = predictionInput.isNotBlank() && isMyTurn && !hasSubmittedPrediction.value
+            enabled = predictionInput.isNotBlank() && isMyTurn && !viewModel.hasSubmittedPrediction
         ) {
             Text("Weiter")
+        }
+
+        viewModel.error?.let {
+            Text(it, color = Color.Red)
         }
 
     }

@@ -84,9 +84,14 @@ object GameStompClient {
         session?.sendText("/app/game/join", jsonBody)
     }
     suspend fun sendPrediction(gameId: String, playerId: String, prediction: Int) {
-        val request = PredictionRequest(gameId, playerId, prediction)
-        val jsonBody = json.encodeToString(PredictionRequest.serializer(), request)
-        session?.sendText("/app/game/predict", jsonBody)
+        try {
+            val request = PredictionRequest(gameId, playerId, prediction)
+            val jsonBody = json.encodeToString(PredictionRequest.serializer(), request)
+            session?.sendText("/app/game/predict", jsonBody)
+        } catch (e: Exception) {
+            Log.e(TAG, "Fehler beim Senden der Vorhersage: ${e.message}", e)
+            throw e
+        }
     }
 
 
@@ -166,4 +171,17 @@ object GameStompClient {
         }?.launchIn(scope)
     }
 
-}
+    suspend fun subscribeToErrors(
+        playerId: String,
+        onError: (String) -> Unit,
+        scope: CoroutineScope = CoroutineScope(Dispatchers.Main)
+    ) {
+        val topic = "/topic/errors/$playerId"
+        session?.subscribeText(topic)?.onEach { message ->
+            Log.e(TAG, "Fehler empfangen: $message")
+            onError(message)
+        }?.launchIn(scope)
+    }
+
+
+ }

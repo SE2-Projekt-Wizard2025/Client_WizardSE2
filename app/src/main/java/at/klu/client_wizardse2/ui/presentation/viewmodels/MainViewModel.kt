@@ -43,6 +43,10 @@ class MainViewModel : ViewModel() {
 
     var roundJustEnded by mutableStateOf(false)
 
+    var hasSubmittedPrediction by mutableStateOf(false)
+
+    private var lastKnownRound by mutableStateOf(-1)
+
 
     fun connectAndJoin(gameId: String, playerId: String, playerName: String) {
         this.gameId = gameId
@@ -56,7 +60,24 @@ class MainViewModel : ViewModel() {
                     Log.d("StompDebug", "Verbindung erfolgreich, starte Abo für $playerId")
                     GameStompClient.subscribeToGameUpdates(
                         playerId = playerId,
-                        onUpdate = { gameResponse = it },
+                        onUpdate = { response ->
+                            // 🔁 Runde hat sich geändert → Vorhersage-Zustände zurücksetzen
+                            if (response.currentRound != lastKnownRound) {
+                                hasSubmittedPrediction = false
+                                error = null
+                                lastKnownRound = response.currentRound
+                            }
+
+                            gameResponse = response // ⬅️ Das MUSS erhalten bleiben!
+                        },
+                        scope = viewModelScope
+                    )
+                    GameStompClient.subscribeToErrors(
+                        playerId = playerId,
+                        onError = { errorMessage ->
+                            error = errorMessage
+                            hasSubmittedPrediction = false
+                        },
                         scope = viewModelScope
                     )
                     delay(100)
@@ -69,6 +90,7 @@ class MainViewModel : ViewModel() {
                 error = "Error: ${e.message}"
             }
         }
+
     }
 
     fun subscribeToScoreboard(gameId: String) {
@@ -92,10 +114,19 @@ class MainViewModel : ViewModel() {
         return gameResponse?.status?.name == "PLAYING"
     }
 
-    fun sendPrediction(gameId: String, playerId: String, prediction: Int) {
-        viewModelScope.launch {
+    suspend fun sendPrediction(gameId: String, playerId: String, prediction: Int): Boolean {
+        return try {
             GameStompClient.sendPrediction(gameId, playerId, prediction)
-
+            error = null
+            true
+        } catch (e: Exception) {
+            val msg = e.message ?: e.cause?.message ?: "Unbekannter Fehler"
+            error = if (msg.contains("exakt die Anzahl der Stiche")) {
+                "! Vorhersage nicht erlaubt – die Summe entspricht der Rundenzahl. Gib bitte einen anderen Wert ein."
+            } else {
+                "! Fehler: $msg"
+            }
+            false
         }
     }
 
