@@ -11,10 +11,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -126,28 +129,61 @@ fun ScoreboardView(scoreboard: List<PlayerDto>, currentPlayerName: String) {
 }
 
 @Composable
-fun CardView(card: CardDto, onCardClick: (String) -> Unit = {}) {
+fun CardView(card: CardDto, onCardClick: ((String) -> Unit)? = null) {
+    val backgroundColor = when (card.color?.uppercase()) {
+        "RED" -> Color.Red
+        "BLUE" -> Color.Blue
+        "GREEN" -> Color.Green
+        "YELLOW" -> Color.Yellow
+        else -> Color.LightGray
+    }
+
+    val textColor = if (card.color?.uppercase() in listOf("YELLOW", "GREEN")) Color.Black else Color.White
+
     val actualCardString = when (card.type) {
         "WIZARD" -> "WIZARD"
         "JESTER" -> "JESTER"
         else -> "${card.color}_${card.value}"
     }
 
-    Box(
-        modifier = Modifier
-            .padding(4.dp)
-            .clickable { onCardClick(actualCardString) } //Hinzufügen des Click-Handlers
-            .border(1.dp, Color.Gray, RoundedCornerShape(4.dp))
-            .background(Color.LightGray)
-            .size(width = 70.dp, height = 100.dp),
-        contentAlignment = Alignment.Center
+    val cardModifier = Modifier
+        .width(80.dp)
+        .height(120.dp)
+        .then(
+            if (onCardClick != null) Modifier.clickable { onCardClick(actualCardString) }
+            else Modifier
+        )
+
+    Card(
+        modifier = cardModifier,
+        colors = CardDefaults.cardColors(containerColor = backgroundColor),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        shape = RoundedCornerShape(12.dp)
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(text = card.color, style = MaterialTheme.typography.bodySmall)
-            Text(text = card.value, style = MaterialTheme.typography.bodyMedium)
-            if (card.type != "NUMBER") {
-                Text(text = card.type, style = MaterialTheme.typography.bodySmall)
-            }
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(8.dp),
+            verticalArrangement = Arrangement.SpaceBetween,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = when (card.type) {
+                    "WIZARD" -> "Wizard"
+                    "JESTER" -> "Narr"
+                    else -> card.color ?: "?"
+                },
+                style = MaterialTheme.typography.labelMedium,
+                color = textColor
+            )
+            Text(
+                text = when (card.type) {
+                    "WIZARD", "JESTER" -> ""
+                    else -> card.value ?: "?"
+                },
+                style = MaterialTheme.typography.titleLarge,
+                color = textColor
+            )
         }
     }
 }

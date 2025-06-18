@@ -1,8 +1,10 @@
 package at.klu.client_wizardse2.ui.presentation.screen
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -122,12 +124,24 @@ fun CardView(card: CardDto) {
         else -> Color.LightGray
     }
 
+    val textColor = if (card.color?.uppercase() in listOf("YELLOW", "GREEN")) Color.Black else Color.White
+
+    val actualCardString = when (card.type) {
+        "WIZARD" -> "WIZARD"
+        "JESTER" -> "JESTER"
+        else -> "${card.color}_${card.value}"
+    }
+
+    val cardModifier = Modifier
+        .width(80.dp)
+        .height(120.dp)
+
+
     Card(
-        modifier = Modifier
-            .width(80.dp)
-            .height(120.dp),
+        modifier = cardModifier,
         colors = CardDefaults.cardColors(containerColor = backgroundColor),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        shape = RoundedCornerShape(12.dp)
     ) {
         Column(
             modifier = Modifier
@@ -143,7 +157,7 @@ fun CardView(card: CardDto) {
                     else -> card.color ?: "?"
                 },
                 style = MaterialTheme.typography.labelMedium,
-                color = Color.White
+                color = textColor
             )
             Text(
                 text = when (card.type) {
@@ -151,7 +165,7 @@ fun CardView(card: CardDto) {
                     else -> card.value ?: "?"
                 },
                 style = MaterialTheme.typography.titleLarge,
-                color = Color.White
+                color = textColor
             )
         }
     }
