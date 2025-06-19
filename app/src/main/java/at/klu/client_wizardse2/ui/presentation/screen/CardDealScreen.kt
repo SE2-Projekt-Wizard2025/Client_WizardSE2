@@ -1,6 +1,7 @@
 package at.klu.client_wizardse2.ui.presentation.screen
 
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -41,9 +42,23 @@ fun CardDealScreen(viewModel: MainViewModel, onPredictionComplete: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
 
+        Button(
+            onClick = { viewModel.toggleColorRuleIgnoring() },
+            colors = ButtonDefaults.buttonColors(
+                containerColor = if (viewModel.ignoreColorRule) Color.Red.copy(alpha = 0.7f)
+                else MaterialTheme.colorScheme.primary
+            ),
+            modifier = Modifier.padding(bottom = 16.dp)
+        ) {
+            Text(
+                if (viewModel.ignoreColorRule) "Farbregel wird ignoriert"
+                else "Farbregel ignorieren"
+            )
+        }
+
         if (trumpCard != null) {
             Text("🃏 Trumpfkarte", style = MaterialTheme.typography.headlineSmall)
-            CardView(trumpCard)
+            CardDealView(trumpCard)
         } else {
             Text("Noch keine Trumpfkarte bekannt.", style = MaterialTheme.typography.bodyMedium)
         }
@@ -59,7 +74,13 @@ fun CardDealScreen(viewModel: MainViewModel, onPredictionComplete: () -> Unit) {
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(handCards) { card ->
-                    CardView(card)
+                    CardDealView(
+                        card = card,
+                        onClick = {
+                            val cardString = "${card.color}_${card.value}_${card.type}"
+                            viewModel.playCard(cardString)
+                        }
+                    )
                 }
             }
 
@@ -115,7 +136,10 @@ fun CardDealScreen(viewModel: MainViewModel, onPredictionComplete: () -> Unit) {
 }
 
 @Composable
-fun CardView(card: CardDto) {
+fun CardDealView(
+    card: CardDto,
+    onClick: (() -> Unit)? = null
+) {
     val backgroundColor = when (card.color.uppercase()) {
         "RED" -> Color.Red
         "BLUE" -> Color.Blue
@@ -138,7 +162,10 @@ fun CardView(card: CardDto) {
 
 
     Card(
-        modifier = cardModifier,
+        modifier = Modifier
+            .width(80.dp)
+            .height(120.dp)
+            .clickable(enabled = onClick != null) { onClick?.invoke() },
         colors = CardDefaults.cardColors(containerColor = backgroundColor),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         shape = RoundedCornerShape(12.dp)
