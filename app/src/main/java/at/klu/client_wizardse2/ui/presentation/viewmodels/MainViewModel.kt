@@ -14,6 +14,7 @@ import kotlinx.coroutines.launch
 
 
 import at.klu.client_wizardse2.model.response.GameResponse
+import at.klu.client_wizardse2.model.response.dto.CardDto
 import at.klu.client_wizardse2.model.response.dto.PlayerDto
 import at.klu.client_wizardse2.network.GameStompClient
 import kotlinx.coroutines.delay
@@ -46,6 +47,12 @@ class MainViewModel : ViewModel() {
 
     private var lastKnownRound by mutableStateOf(-1)
 
+    var ignoreColorRule by mutableStateOf(false)
+
+
+    fun toggleColorRuleIgnoring() {
+        ignoreColorRule = !ignoreColorRule
+    }
 
     fun connectAndJoin(gameId: String, playerId: String, playerName: String) {
         this.gameId = gameId
@@ -131,12 +138,20 @@ class MainViewModel : ViewModel() {
 
     fun playCard(cardString: String) {
         viewModelScope.launch {
-
             if (gameId.isNotEmpty() && playerId.isNotEmpty()) {
-                GameStompClient.sendPlayCardRequest(gameId, playerId, cardString)
+                val finalCardString = if (ignoreColorRule) "CHEAT:$cardString" else cardString
+                GameStompClient.sendPlayCardRequest(gameId, playerId, finalCardString)
             } else {
                 error = "Game ID or Player ID not set. Cannot play card."
             }
+        }
+    }
+
+    private fun buildCardString(card: CardDto): String {
+        return if (ignoreColorRule) {
+            "CHEAT:${card.color}:${card.value}:${card.type}"
+        } else {
+            "${card.color}:${card.value}:${card.type}"
         }
     }
 
