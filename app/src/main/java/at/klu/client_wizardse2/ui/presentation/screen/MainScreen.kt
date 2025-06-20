@@ -31,13 +31,15 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import at.klu.client_wizardse2.model.response.dto.CardDto
 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen() {
-    val viewModel = remember { MainViewModel() }
+    val context = LocalContext.current //Lösung da jetzt MainViewModel einen Context erwartet...
+    val viewModel = remember { MainViewModel(context) }
     var currentScreen by remember { mutableStateOf(Screen.Lobby) }
     var previousRound by remember { mutableIntStateOf(0)  }
 
