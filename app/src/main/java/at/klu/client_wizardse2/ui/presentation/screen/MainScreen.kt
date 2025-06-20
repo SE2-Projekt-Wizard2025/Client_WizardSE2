@@ -234,13 +234,14 @@ fun SimpleGameScreen(viewModel: MainViewModel) {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 items(gameResponse?.handCards ?: emptyList()) { card ->
                     val isMyTurn = viewModel.playerId == gameResponse?.currentPlayerId
-                    if (isMyTurn) {
-                        CardView(card) { cardString ->
-                            viewModel.playCard(cardString)
+                    CardView(
+                        card = card,
+                        onCardClick = { cardString: String -> //not sure ob des so passt, oda explizit mit onClick gehört
+                            if (isMyTurn) {
+                                viewModel.playCard(cardString)
+                            } else null
                         }
-                    } else {
-                        CardView(card)
-                    }
+                    )
                 }
             }
         }
