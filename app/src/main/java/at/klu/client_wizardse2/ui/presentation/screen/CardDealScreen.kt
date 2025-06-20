@@ -39,7 +39,25 @@ fun CardDealScreen(viewModel: MainViewModel, onPredictionComplete: () -> Unit) {
             .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
-    ) {
+    )
+
+    {
+        if (viewModel.gameResponse?.currentPlayerId == viewModel.playerId) { //@Elias
+            Button(
+                onClick = { viewModel.toggleCheatState(viewModel.playerId) },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (viewModel.isCheating(viewModel.playerId))
+                        Color.Red.copy(alpha = 0.7f)
+                    else MaterialTheme.colorScheme.primary
+                )
+            ) {
+                Text(
+                    if (viewModel.isCheating(viewModel.playerId))
+                        "Farbregel ignorieren (AKTIV)"
+                    else "Farbregel ignorieren"
+                )
+            }
+        }
 
         if (trumpCard != null) {
             Text("🃏 Trumpfkarte", style = MaterialTheme.typography.headlineSmall)
