@@ -1,5 +1,6 @@
 package at.klu.client_wizardse2.ui.presentation.viewmodels
 
+import android.content.Context
 import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
@@ -7,6 +8,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import at.klu.client_wizardse2.helper.FlashlightHelper
 //import dagger.hilt.android.lifecycle.HiltViewModel
 //import javax.inject.Inject
 
@@ -21,7 +23,7 @@ import kotlinx.coroutines.delay
 import org.jetbrains.annotations.VisibleForTesting
 
 
-class MainViewModel : ViewModel() {
+class MainViewModel(private val context: Context) : ViewModel() {
 
     var gameResponse by mutableStateOf<GameResponse?>(null)
         @VisibleForTesting set
@@ -51,13 +53,29 @@ class MainViewModel : ViewModel() {
     private val _cheatStates = mutableStateMapOf<String, Boolean>() //@Elias
     val cheatStates: Map<String, Boolean> get() = _cheatStates
 
-    fun toggleCheatState(playerId: String) {
-        _cheatStates[playerId] = !(_cheatStates[playerId] ?: false)
-    }
+    private val flashlightHelper = FlashlightHelper(context)
+
 
     fun isCheating(playerId: String): Boolean {
         return _cheatStates[playerId] ?: false
     }
+
+    fun toggleCheatState(playerId: String) {
+        _cheatStates[playerId] = !(_cheatStates[playerId] ?: false)
+
+        if (isCheating(playerId)) { //automatisch aktivieren wenn button gedrückt wird
+            flashlightHelper.toggleFlashlight(
+                true,
+                5000
+            ) //DURATION: hier wert ändern für Balancing je nachdem wie leicht es auffällt
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        flashlightHelper.cleanup()
+    }
+
 
     fun connectAndJoin(gameId: String, playerId: String, playerName: String) {
         this.gameId = gameId
