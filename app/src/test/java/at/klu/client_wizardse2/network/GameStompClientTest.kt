@@ -102,7 +102,11 @@ class GameStompClientTest {
 
     @Test
     fun `subscribeToGameUpdates should invoke callback with deserialized GameResponse`() = testScope.runTest {
-        val testJson = """{"gameId":"g1","status":"PLAYING","currentPlayerId":"p1","players":[],"handCards":[],"lastPlayedCard":null}"""
+        val testJson = """{"gameId":"g1","status":"PLAYING","currentPlayerId":"p1","players":[],"handCards":[],"lastPlayedCard":null,
+            "lastTrickWinnerId": "p1",
+            "trumpCard": null,
+            "currentRound": 1,
+            "currentPredictionPlayerId": null}"""
         val flow = flowOf(testJson)
         val testPlayerId = "p1"
 
@@ -364,5 +368,23 @@ class GameStompClientTest {
 
         assertNull(receivedScoreboard)
         coVerify { Log.e(eq("GameStompClient"), any(), any()) }
+    }
+
+    @Test
+    fun `sendProceedToNextRound should send correct gameId to endpoint`() = testScope.runTest {
+        GameStompClient.setSessionForTesting(mockSession)
+        val gameId = "game-to-advance"
+        val expectedJson = "\"$gameId\""
+
+        coJustRun {
+            mockSession.sendText(eq("/app/game/proceedToNextRound"), eq(expectedJson))
+        }
+
+        GameStompClient.sendProceedToNextRound(gameId)
+        advanceUntilIdle()
+
+        coVerify {
+            mockSession.sendText(eq("/app/game/proceedToNextRound"), eq(expectedJson))
+        }
     }
 }

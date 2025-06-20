@@ -11,6 +11,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import org.hildan.krossbow.stomp.StompClient
 import org.hildan.krossbow.stomp.StompSession
@@ -162,8 +163,10 @@ object GameStompClient {
         val topic = "/topic/game/$gameId/scoreboard"
         session?.subscribeText(topic)?.onEach { message ->
             try {
-                val type = object : TypeToken<List<PlayerDto>>() {}.type
-                val scoreboard = Gson().fromJson<List<PlayerDto>>(message, type)
+                val scoreboard = json.decodeFromString(
+                    ListSerializer(PlayerDto.serializer()),
+                    message
+                )
                 onScoreboardReceived(scoreboard)
             } catch (e: Exception) {
                 Log.e(TAG, "Fehler beim Parsen des Scoreboards: ${e.message}", e)
@@ -181,6 +184,12 @@ object GameStompClient {
             Log.e(TAG, "Fehler empfangen: $message")
             onError(message)
         }?.launchIn(scope)
+    }
+
+    suspend fun sendProceedToNextRound(gameId: String) {
+        val jsonGameId = "\"$gameId\""
+        session?.sendText("/app/game/proceedToNextRound", jsonGameId)
+        Log.d(TAG, "Proceed to next round request sent for gameId: $gameId")
     }
 
 

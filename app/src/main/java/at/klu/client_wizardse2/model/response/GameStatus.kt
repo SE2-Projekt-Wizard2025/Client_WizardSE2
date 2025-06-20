@@ -5,5 +5,6 @@ enum class GameStatus {
     LOBBY,
     PREDICTION,
     PLAYING,
+    ROUND_END_SUMMARY,
     ENDED
 }
