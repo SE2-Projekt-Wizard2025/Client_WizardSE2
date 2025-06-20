@@ -2,6 +2,7 @@ package at.klu.client_wizardse2.ui.presentation.viewmodels
 
 import android.util.Log
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
@@ -46,6 +47,17 @@ class MainViewModel : ViewModel() {
 
     private var lastKnownRound by mutableStateOf(-1)
 
+
+    private val _cheatStates = mutableStateMapOf<String, Boolean>() //@Elias
+    val cheatStates: Map<String, Boolean> get() = _cheatStates
+
+    fun toggleCheatState(playerId: String) {
+        _cheatStates[playerId] = !(_cheatStates[playerId] ?: false)
+    }
+
+    fun isCheating(playerId: String): Boolean {
+        return _cheatStates[playerId] ?: false
+    }
 
     fun connectAndJoin(gameId: String, playerId: String, playerName: String) {
         this.gameId = gameId
@@ -133,7 +145,14 @@ class MainViewModel : ViewModel() {
         viewModelScope.launch {
 
             if (gameId.isNotEmpty() && playerId.isNotEmpty()) {
-                GameStompClient.sendPlayCardRequest(gameId, playerId, cardString)
+                GameStompClient.sendPlayCardRequest(
+                    gameId,
+                    playerId,
+                    cardString,
+                    isCheating = isCheating(playerId)//@Elias idk wie man des verlinkt mitn GameStompClient, aba da Server muss den Cheat-Status erkennen
+                )
+
+                //hier ggf _cheatStates[playerID] wieder false setzen, aber dann ist Aufdecken von Cheatern unmöglich..?
             } else {
                 error = "Game ID or Player ID not set. Cannot play card."
             }
