@@ -21,4 +21,3 @@ dependencyResolutionManagement {
 
 rootProject.name = "Client_WizardSE2"
 include(":app")
- 

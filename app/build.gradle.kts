@@ -20,7 +20,7 @@ sonar {
             "sonar.coverage.jacoco.xmlReportPaths",
             "${project.projectDir}/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml"
         )
-        property("sonar.coverage.exclusions", "**/screen/**, **/sections/**, **/model/**, **/theme/**, **/MainActivity.kt, **/response/**")
+        property("sonar.coverage.exclusions", "**/screen/**, **/sections/**, **/model/**, **/theme/**, **/MainActivity.kt, **/response/**, **/components/**")
     }
 }
 android {
@@ -84,6 +84,7 @@ tasks.register<JacocoReport>("jacocoTestReport") {
         "android/**/*.*",
         "**/ui/presentation/screen/**",
         "**/ui/presentation/sections/**",
+        "**/ui/presentation/components/**",
         "**/ui/theme/**",
         "**/ui/presentation/MainActivity*",
         "**/model/**"

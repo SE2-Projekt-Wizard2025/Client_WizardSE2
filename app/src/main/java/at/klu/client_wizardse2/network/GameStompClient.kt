@@ -21,7 +21,7 @@ import org.hildan.krossbow.stomp.subscribeText
 import org.hildan.krossbow.websocket.okhttp.OkHttpWebSocketClient
 
 private const val WEBSOCKET_URI = "ws://10.0.2.2:8080/ws"
-private const val TAG = "GameStompClient"
+const val TAG = "GameStompClient"
 
 object GameStompClient {
     private var stompClient = StompClient(OkHttpWebSocketClient())

@@ -20,7 +20,13 @@ import org.junit.Test
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.coJustRun
-import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.MutableSharedFlow
+import io.mockk.every
+import io.mockk.mockk
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.advanceUntilIdle
+
+
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class GameStompClientTest {
@@ -29,6 +35,7 @@ class GameStompClientTest {
     private val testScope = TestScope(testDispatcher)
     private lateinit var mockClient: StompClient
     private lateinit var mockSession: StompSession
+    private val badJsonFlow = MutableSharedFlow<String>()
 
     @Before
     fun setup() {
@@ -136,14 +143,13 @@ class GameStompClientTest {
         val invalidJson = """{ invalid json """
         val flow = flowOf(invalidJson)
 
-        // Passe den Topic an den tatsächlichen (nicht-playerId-spezifischen) Code an
         coEvery { mockSession.subscribeText("/topic/game") } returns flow
         GameStompClient.setSessionForTesting(mockSession)
 
         val responses = mutableListOf<GameResponse>()
 
         GameStompClient.subscribeToGameUpdates(
-            playerId = "p1", // bleibt übergeben, aber wird intern ignoriert
+            playerId = "p1",
             onUpdate = { responses.add(it) },
             scope = this
         )
@@ -234,39 +240,35 @@ class GameStompClientTest {
         }
 
     fun `sendJoinRequest should do nothing if session is null`() = runTest {
-        // Arrange
         GameStompClient.setSessionForTesting(null)
 
-        // Act & Assert: No exception should be thrown
         GameStompClient.sendJoinRequest("game-id", "player-id", "test-name")
     }
 
     @Test
     fun `sendPrediction should do nothing if session is null`() = runTest {
-        // Arrange
+
         GameStompClient.setSessionForTesting(null)
 
-        // Act & Assert: No exception should be thrown
         GameStompClient.sendPrediction("game-id", "player-id", 1)
     }
 
     @Test
     fun `sendStartGameRequest should do nothing if session is null`() = runTest {
-        // Arrange
+
         GameStompClient.setSessionForTesting(null)
 
-        // Act & Assert: No exception should be thrown
         GameStompClient.sendStartGameRequest("game-id")
     }
 
     @Test
     fun `subscribeToGameUpdates should not crash on null session`() = runTest {
-        // Arrange
+
         GameStompClient.setSessionForTesting(null)
 
         val receivedResponses = mutableListOf<GameResponse>()
 
-        // Act
+
         GameStompClient.subscribeToGameUpdates(
             playerId = "player-id",
             onUpdate = { receivedResponses.add(it) },
@@ -275,7 +277,6 @@ class GameStompClientTest {
 
         advanceUntilIdle()
 
-        // Assert
         assertTrue("No updates should be received", receivedResponses.isEmpty())
     }
 
@@ -292,12 +293,12 @@ class GameStompClientTest {
         GameStompClient.subscribeToGameUpdates(
             playerId = "p1",
             onUpdate = { received.add(it) },
-            scope = this // verwende TestScope, um launchIn auszuführen
+            scope = this
         )
 
         advanceUntilIdle()
 
-        assertTrue(received.isEmpty()) // nothing should be added
+        assertTrue(received.isEmpty())
     }
 
     @Test
@@ -310,7 +311,6 @@ class GameStompClientTest {
 
         val received = mutableListOf<GameResponse>()
 
-        // rufe Methode auf OHNE "scope =" → Default-Parameter wird genutzt
         GameStompClient.subscribeToGameUpdates(
             playerId = "p1",
             onUpdate = { received.add(it) }
@@ -372,5 +372,75 @@ class GameStompClientTest {
 
         assertNull(receivedScoreboard)
         coVerify { Log.e(eq("GameStompClient"), any(), any()) }
+    }
+
+    @Test
+    fun `sendJoinRequest should not send if session is null`() = runTest {
+        // Given
+        GameStompClient.setSessionForTesting(null)
+
+        // When
+        GameStompClient.sendJoinRequest("game1", "player1", "Alice")
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) {
+            any<StompSession>().sendText(any(), any())
+        }
+    }
+
+    @Test
+    fun `sendPrediction should not send if session is null`() = runTest {
+        GameStompClient.setSessionForTesting(null)
+        GameStompClient.sendPrediction("game1", "player1", 1)
+        advanceUntilIdle()
+        coVerify(exactly = 0) { any<StompSession>().sendText(any(), any()) }
+    }
+
+    @Test
+    fun `subscribeToGameUpdates should not subscribe if session is null`() = runTest {
+        GameStompClient.setSessionForTesting(null)
+        GameStompClient.subscribeToGameUpdates(playerId = "player1", onUpdate = {}, scope = this)
+        advanceUntilIdle()
+        coVerify(exactly = 0) { any<StompSession>().subscribeText(any()) }
+    }
+
+    @Test
+    fun `sendStartGameRequest should not send if session is null`() = runTest {
+        GameStompClient.setSessionForTesting(null)
+        GameStompClient.sendStartGameRequest("game1")
+        advanceUntilIdle()
+        coVerify(exactly = 0) { any<StompSession>().sendText(any(), any()) }
+    }
+
+    @Test
+    fun `sendPlayCardRequest should not send if session is null`() = runTest {
+        GameStompClient.setSessionForTesting(null)
+        GameStompClient.sendPlayCardRequest("game1", "player1", "RED_5")
+        advanceUntilIdle()
+        coVerify(exactly = 0) { any<StompSession>().sendText(any(), any()) }
+    }
+
+    @Test
+    fun `subscribeToScoreboard should not subscribe if session is null`() = runTest {
+        GameStompClient.setSessionForTesting(null)
+        GameStompClient.subscribeToScoreboard("game1", onScoreboardReceived = {}, scope = this)
+        advanceUntilIdle()
+        coVerify(exactly = 0) { any<StompSession>().subscribeText(any()) }
+    }
+
+    @Test
+    fun `subscribeToErrors should not subscribe if session is null`() = runTest {
+        GameStompClient.setSessionForTesting(null)
+        GameStompClient.subscribeToErrors("player1", onError = {}, scope = this)
+        advanceUntilIdle()
+        coVerify(exactly = 0) { any<StompSession>().subscribeText(any()) }
+    }
+
+    @Test
+    fun `sendProceedToNextRound should not send if session is null`() = runTest {
+        GameStompClient.setSessionForTesting(null)
+        GameStompClient.sendProceedToNextRound("game1")
+        advanceUntilIdle()
+        coVerify(exactly = 0) { any<StompSession>().sendText(any(), any()) }
     }
 }
