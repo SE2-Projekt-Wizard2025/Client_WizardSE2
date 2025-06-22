@@ -129,11 +129,11 @@ class MainViewModel : ViewModel() {
             error = null
             true
         } catch (e: Exception) {
-            val msg = e.message ?: e.cause?.message ?: "Unbekannter Fehler"
+            val msg = e.message ?: e.cause?.message ?: "Unbekannter Fehler bei der Vorhersage."
             error = if (msg.contains("exakt die Anzahl der Stiche")) {
-                "! Vorhersage nicht erlaubt – die Summe entspricht der Rundenzahl. Gib bitte einen anderen Wert ein."
+                "❌ Vorhersage nicht erlaubt! Die Summe der Stiche stimmt. Bitte wählen Sie einen anderen Wert ein."
             } else {
-                "! Fehler: $msg"
+                "Error: ${msg.ifBlank { "Unbekannter Fehler bei der Vorhersage." }}"
             }
             false
         }
