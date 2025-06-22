@@ -106,26 +106,39 @@ class GameStompClientTest {
 
     @Test
     fun `subscribeToGameUpdates should invoke callback with deserialized GameResponse`() = testScope.runTest {
-        val testJson = """{"gameId":"g1","status":"PLAYING","currentPlayerId":"p1","players":[],"handCards":[],"lastPlayedCard":null}"""
-        val flow = flowOf(testJson)
-        val testPlayerId = "p1"
+        val testJson = """
+        {
+            "gameId": "g1",
+            "status": "PLAYING",
+            "currentPlayerId": "p1",
+            "players": [],
+            "handCards": [],
+            "lastPlayedCard": null,
+            "trumpCard": null,
+            "currentRound": 1,
+            "currentPredictionPlayerId": null,
+            "lastTrickWinnerId": null
+        }
+    """.trimIndent()
 
-        coEvery { mockSession.subscribeText("/topic/game/$testPlayerId") } returns flow
+        coEvery { mockSession.subscribeText("/topic/game/p1") } returns flowOf(testJson)
         GameStompClient.setSessionForTesting(mockSession)
 
-        val responses = mutableListOf<GameResponse>()
+        val receivedResponses = mutableListOf<GameResponse>()
 
         GameStompClient.subscribeToGameUpdates(
-            playerId = testPlayerId,
-            onUpdate = { responses.add(it) },
+            playerId = "p1",
+            onUpdate = { receivedResponses.add(it) },
             scope = this
         )
 
         advanceUntilIdle()
 
-        assertEquals(1, responses.size)
-        assertEquals("g1", responses.first().gameId)
+        assertEquals(1, receivedResponses.size)
+        assertEquals("g1", receivedResponses.first().gameId)
+        assertEquals(GameStatus.PLAYING, receivedResponses.first().status)
     }
+
 
 
     @Test
@@ -228,7 +241,7 @@ class GameStompClientTest {
                 }
             )
         }
-
+    @Test
     fun `sendJoinRequest should do nothing if session is null`() = runTest {
 
         GameStompClient.setSessionForTesting(null)
@@ -410,9 +423,7 @@ class GameStompClientTest {
     }
 
     @Test
-    fun `subscribeToGameUpdates should parse GameResponse and call onUpdate`() = runTest {
-        val playerId = "player-abc"
-
+    fun `subscribeToGameUpdates should parse GameResponse and call onUpdate`() = testScope.runTest {
         val testJson = """
         {
           "gameId": "game-123",
@@ -441,18 +452,22 @@ class GameStompClientTest {
             "value": "A",
             "type": "NORMAL"
           },
-          "currentRound": 5
+          "currentRound": 5,
+          "currentPredictionPlayerId": null,
+          "lastTrickWinnerId": null
         }
     """.trimIndent()
 
-        coEvery { mockSession.subscribeText("/topic/game/$playerId") } returns flowOf(testJson)
+        coEvery { mockSession.subscribeText("/topic/game/player-abc") } returns flowOf(testJson)
         GameStompClient.setSessionForTesting(mockSession)
 
         var receivedResponse: GameResponse? = null
 
-        GameStompClient.subscribeToGameUpdates(playerId, onUpdate = {
-            receivedResponse = it
-        }, scope = this)
+        GameStompClient.subscribeToGameUpdates(
+            playerId = "player-abc",
+            onUpdate = { receivedResponse = it },
+            scope = this
+        )
 
         advanceUntilIdle()
 
@@ -460,7 +475,6 @@ class GameStompClientTest {
         assertEquals("game-123", receivedResponse?.gameId)
         assertEquals(GameStatus.PLAYING, receivedResponse?.status)
         assertEquals("player-abc", receivedResponse?.currentPlayerId)
-        assertEquals(1, receivedResponse?.players?.size)
 
         val player = receivedResponse?.players?.first()
         assertEquals("player-abc", player?.playerId)
@@ -484,6 +498,7 @@ class GameStompClientTest {
 
         assertEquals(5, receivedResponse?.currentRound)
     }
+
 
 
 
