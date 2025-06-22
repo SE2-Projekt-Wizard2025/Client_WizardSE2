@@ -1,7 +1,9 @@
 package at.klu.client_wizardse2.network
 
+import android.content.ContentValues.TAG
 import android.util.Log
 import at.klu.client_wizardse2.model.response.GameResponse
+import at.klu.client_wizardse2.model.response.GameStatus
 import at.klu.client_wizardse2.model.response.dto.PlayerDto
 import io.mockk.*
 import kotlinx.coroutines.Dispatchers
@@ -20,6 +22,7 @@ import org.junit.Test
 import io.mockk.coEvery
 import io.mockk.coVerify
 
+
 @OptIn(ExperimentalCoroutinesApi::class)
 class GameStompClientTest {
 
@@ -27,6 +30,7 @@ class GameStompClientTest {
     private val testScope = TestScope(testDispatcher)
     private lateinit var mockClient: StompClient
     private lateinit var mockSession: StompSession
+
 
     @Before
     fun setup() {
@@ -129,14 +133,13 @@ class GameStompClientTest {
         val invalidJson = """{ invalid json """
         val flow = flowOf(invalidJson)
 
-        // Passe den Topic an den tatsächlichen (nicht-playerId-spezifischen) Code an
         coEvery { mockSession.subscribeText("/topic/game") } returns flow
         GameStompClient.setSessionForTesting(mockSession)
 
         val responses = mutableListOf<GameResponse>()
 
         GameStompClient.subscribeToGameUpdates(
-            playerId = "p1", // bleibt übergeben, aber wird intern ignoriert
+            playerId = "p1",
             onUpdate = { responses.add(it) },
             scope = this
         )
@@ -227,19 +230,17 @@ class GameStompClientTest {
         }
 
     fun `sendJoinRequest should do nothing if session is null`() = runTest {
-        // Arrange
+
         GameStompClient.setSessionForTesting(null)
 
-        // Act & Assert: No exception should be thrown
         GameStompClient.sendJoinRequest("game-id", "player-id", "test-name")
     }
 
     @Test
     fun `sendPrediction should do nothing if session is null`() = runTest {
-        // Arrange
+
         GameStompClient.setSessionForTesting(null)
 
-        // Act & Assert: No exception should be thrown
         GameStompClient.sendPrediction("game-id", "player-id", 1)
     }
 
@@ -248,7 +249,7 @@ class GameStompClientTest {
         // Arrange
         GameStompClient.setSessionForTesting(null)
 
-        // Act & Assert: No exception should be thrown
+
         GameStompClient.sendStartGameRequest("game-id")
     }
 
@@ -268,7 +269,7 @@ class GameStompClientTest {
 
         advanceUntilIdle()
 
-        // Assert
+
         assertTrue("No updates should be received", receivedResponses.isEmpty())
     }
 
@@ -285,12 +286,12 @@ class GameStompClientTest {
         GameStompClient.subscribeToGameUpdates(
             playerId = "p1",
             onUpdate = { received.add(it) },
-            scope = this // verwende TestScope, um launchIn auszuführen
+            scope = this
         )
 
         advanceUntilIdle()
 
-        assertTrue(received.isEmpty()) // nothing should be added
+        assertTrue(received.isEmpty())
     }
 
     @Test
@@ -303,7 +304,6 @@ class GameStompClientTest {
 
         val received = mutableListOf<GameResponse>()
 
-        // rufe Methode auf OHNE "scope =" → Default-Parameter wird genutzt
         GameStompClient.subscribeToGameUpdates(
             playerId = "p1",
             onUpdate = { received.add(it) }
@@ -365,4 +365,149 @@ class GameStompClientTest {
         assertNull(receivedScoreboard)
         coVerify { Log.e(eq("GameStompClient"), any(), any()) }
     }
+
+    @Test
+    fun `sendPrediction should log and rethrow exception if sending fails`() = testScope.runTest {
+        val exceptionToThrow = RuntimeException("Send failed")
+
+        coEvery { mockSession.sendText("/app/game/predict", any()) } throws exceptionToThrow
+        GameStompClient.setSessionForTesting(mockSession)
+
+        var caughtException: Throwable? = null
+
+        try {
+            GameStompClient.sendPrediction("game-123", "player-abc", 42)
+        } catch (e: Throwable) {
+            caughtException = e
+            println("DEBUG: Caught exception: ${e.message}")  // Debug-Ausgabe
+        }
+
+        assertNotNull(caughtException)
+        assertEquals("Send failed", caughtException?.message)
+    }
+
+    @Test
+    fun `subscribeToGameUpdates should catch exception if message is invalid JSON`() = testScope.runTest {
+        val invalidJson = "{ this is not valid JSON"
+        val flow = flowOf(invalidJson)
+        val playerId = "p123"
+
+        coEvery { mockSession.subscribeText("/topic/game/$playerId") } returns flow
+        GameStompClient.setSessionForTesting(mockSession)
+
+        val updates = mutableListOf<GameResponse>()
+
+        GameStompClient.subscribeToGameUpdates(
+            playerId = playerId,
+            onUpdate = { updates.add(it) },
+            scope = this
+        )
+
+        advanceUntilIdle()
+
+        assertTrue(updates.isEmpty())
+        coVerify { Log.e(eq("StompDebug"), match { it.contains("Fehler beim Parsen") }) }
+    }
+
+    @Test
+    fun `subscribeToGameUpdates should parse GameResponse and call onUpdate`() = runTest {
+        val playerId = "player-abc"
+
+        val testJson = """
+        {
+          "gameId": "game-123",
+          "status": "PLAYING",
+          "currentPlayerId": "player-abc",
+          "players": [
+            {
+              "playerId": "player-abc",
+              "playerName": "Alice",
+              "score": 42,
+              "ready": true,
+              "tricksWon": 3,
+              "prediction": 2
+            }
+          ],
+          "handCards": [
+            {
+              "color": "RED",
+              "value": "10",
+              "type": "NORMAL"
+            }
+          ],
+          "lastPlayedCard": "10_RED",
+          "trumpCard": {
+            "color": "BLUE",
+            "value": "A",
+            "type": "NORMAL"
+          },
+          "currentRound": 5
+        }
+    """.trimIndent()
+
+        coEvery { mockSession.subscribeText("/topic/game/$playerId") } returns flowOf(testJson)
+        GameStompClient.setSessionForTesting(mockSession)
+
+        var receivedResponse: GameResponse? = null
+
+        GameStompClient.subscribeToGameUpdates(playerId, onUpdate = {
+            receivedResponse = it
+        }, scope = this)
+
+        advanceUntilIdle()
+
+        assertNotNull(receivedResponse)
+        assertEquals("game-123", receivedResponse?.gameId)
+        assertEquals(GameStatus.PLAYING, receivedResponse?.status)
+        assertEquals("player-abc", receivedResponse?.currentPlayerId)
+        assertEquals(1, receivedResponse?.players?.size)
+
+        val player = receivedResponse?.players?.first()
+        assertEquals("player-abc", player?.playerId)
+        assertEquals("Alice", player?.playerName)
+        assertEquals(42, player?.score)
+        assertEquals(true, player?.ready)
+        assertEquals(3, player?.tricksWon)
+        assertEquals(2, player?.prediction)
+
+        val handCard = receivedResponse?.handCards?.first()
+        assertEquals("RED", handCard?.color)
+        assertEquals("10", handCard?.value)
+        assertEquals("NORMAL", handCard?.type)
+
+        assertEquals("10_RED", receivedResponse?.lastPlayedCard)
+
+        val trumpCard = receivedResponse?.trumpCard
+        assertEquals("BLUE", trumpCard?.color)
+        assertEquals("A", trumpCard?.value)
+        assertEquals("NORMAL", trumpCard?.type)
+
+        assertEquals(5, receivedResponse?.currentRound)
+    }
+
+
+
+    @Test
+    fun `subscribeToScoreboard should use default CoroutineScope when none provided`() = testScope.runTest {
+        val json = """[{"playerId":"p1","playerName":"Alice","score":100,"ready":true,"tricksWon":1,"prediction":1}]"""
+        val flow = flowOf(json)
+        val gameId = "game-xyz"
+
+        coEvery { mockSession.subscribeText("/topic/game/$gameId/scoreboard") } returns flow
+        GameStompClient.setSessionForTesting(mockSession)
+
+        val received = mutableListOf<List<PlayerDto>>()
+
+        GameStompClient.subscribeToScoreboard(
+            gameId = gameId,
+            onScoreboardReceived = { received.add(it) }
+        )
+
+        advanceUntilIdle()
+
+        assertEquals(1, received.size)
+        assertEquals("Alice", received.first().first().playerName)
+    }
+
+
 }
