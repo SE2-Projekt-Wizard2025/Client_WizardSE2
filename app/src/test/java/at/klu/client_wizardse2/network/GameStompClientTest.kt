@@ -1,5 +1,6 @@
 package at.klu.client_wizardse2.network
 
+import android.content.ContentValues.TAG
 import android.util.Log
 import at.klu.client_wizardse2.model.response.GameResponse
 import at.klu.client_wizardse2.model.response.GameStatus
@@ -20,13 +21,6 @@ import org.junit.Before
 import org.junit.Test
 import io.mockk.coEvery
 import io.mockk.coVerify
-import io.mockk.coJustRun
-import kotlinx.coroutines.flow.MutableSharedFlow
-import io.mockk.every
-import io.mockk.mockk
-import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.test.advanceUntilIdle
-
 
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -36,7 +30,7 @@ class GameStompClientTest {
     private val testScope = TestScope(testDispatcher)
     private lateinit var mockClient: StompClient
     private lateinit var mockSession: StompSession
-    private val badJsonFlow = MutableSharedFlow<String>()
+
 
     @Before
     fun setup() {
@@ -99,7 +93,6 @@ class GameStompClientTest {
     @Test
     fun `sendJoinRequest should send correct JSON to destination`() = testScope.runTest {
         GameStompClient.setSessionForTesting(mockSession)
-
         coEvery {
             mockSession.sendText(eq("/app/game/join"), any())
         } returns null
@@ -113,11 +106,7 @@ class GameStompClientTest {
 
     @Test
     fun `subscribeToGameUpdates should invoke callback with deserialized GameResponse`() = testScope.runTest {
-        val testJson = """{"gameId":"g1","status":"PLAYING","currentPlayerId":"p1","players":[],"handCards":[],"lastPlayedCard":null,
-            "lastTrickWinnerId": "p1",
-            "trumpCard": null,
-            "currentRound": 1,
-            "currentPredictionPlayerId": null}"""
+        val testJson = """{"gameId":"g1","status":"PLAYING","currentPlayerId":"p1","players":[],"handCards":[],"lastPlayedCard":null}"""
         val flow = flowOf(testJson)
         val testPlayerId = "p1"
 
@@ -241,6 +230,7 @@ class GameStompClientTest {
         }
 
     fun `sendJoinRequest should do nothing if session is null`() = runTest {
+
         GameStompClient.setSessionForTesting(null)
 
         GameStompClient.sendJoinRequest("game-id", "player-id", "test-name")
@@ -256,20 +246,21 @@ class GameStompClientTest {
 
     @Test
     fun `sendStartGameRequest should do nothing if session is null`() = runTest {
-
+        // Arrange
         GameStompClient.setSessionForTesting(null)
+
 
         GameStompClient.sendStartGameRequest("game-id")
     }
 
     @Test
     fun `subscribeToGameUpdates should not crash on null session`() = runTest {
-
+        // Arrange
         GameStompClient.setSessionForTesting(null)
 
         val receivedResponses = mutableListOf<GameResponse>()
 
-
+        // Act
         GameStompClient.subscribeToGameUpdates(
             playerId = "player-id",
             onUpdate = { receivedResponses.add(it) },
@@ -277,6 +268,7 @@ class GameStompClientTest {
         )
 
         advanceUntilIdle()
+
 
         assertTrue("No updates should be received", receivedResponses.isEmpty())
     }
@@ -352,14 +344,13 @@ class GameStompClientTest {
         assertEquals("Alice", receivedScoreboard?.first()?.playerName)
     }
 
-
     @Test
     fun `subscribeToScoreboard should log error on json parsing exception`() = testScope.runTest {
         val invalidJson = "this is not valid json"
         val flow = flowOf(invalidJson)
         val gameId = "game1"
 
-        coEvery { mockSession.subscribeText("/topic/game/game1/scoreboard") } returns flow
+        coEvery { mockSession.subscribeText("/topic/game/$gameId/scoreboard") } returns flow
         GameStompClient.setSessionForTesting(mockSession)
 
         var receivedScoreboard: List<PlayerDto>? = null
@@ -517,5 +508,6 @@ class GameStompClientTest {
         assertEquals(1, received.size)
         assertEquals("Alice", received.first().first().playerName)
     }
+
 
 }
