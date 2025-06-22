@@ -139,11 +139,12 @@ object GameStompClient {
         session?.sendText("/app/game/start", jsonGameId)
     }
 
-    suspend fun sendPlayCardRequest(gameId: String, playerId: String, card: String) {
+    suspend fun sendPlayCardRequest(gameId: String, playerId: String, card: String, isCheating: Boolean = false) {
         val request = GameRequest(
             gameId = gameId,
             playerId = playerId,
-            card = card
+            card = card,
+            cheating = isCheating
         )
         val jsonBody = json.encodeToString(GameRequest.serializer(), request)
         session?.sendText("/app/game/play", jsonBody)
