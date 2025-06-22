@@ -20,6 +20,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.jetbrains.annotations.VisibleForTesting
 import at.klu.client_wizardse2.model.response.GameStatus
+import kotlinx.coroutines.async
 
 class MainViewModel : ViewModel() {
 
@@ -58,8 +59,7 @@ class MainViewModel : ViewModel() {
             try {
                 val connected = GameStompClient.connect()
                 if (connected) {
-                    Log.d("StompDebug", "Verbindung erfolgreich, starte Abo für $playerId")
-                    GameStompClient.subscribeToGameUpdates(
+                   GameStompClient.subscribeToGameUpdates(
                         playerId = playerId,
                         onUpdate = { response ->
                             // 🔁 Runde hat sich geändert → Vorhersage-Zustände zurücksetzen
@@ -68,17 +68,15 @@ class MainViewModel : ViewModel() {
                                 error = null
                                 lastKnownRound = response.currentRound
                             }
-                            if (response.status == GameStatus.ROUND_END_SUMMARY) { // NEU: Prüfung auf ROUND_END_SUMMARY
-                                showRoundSummaryScreen = true // Signalisiert der UI, den Zusammenfassungsbildschirm anzuzeigen
-                                Log.d("MainViewModel", "GameStatus ist ROUND_END_SUMMARY. Zeige Runden-Zusammenfassung an.")
+                            if (response.status == GameStatus.ROUND_END_SUMMARY) {
+                                showRoundSummaryScreen = true
                             } else {
                                if (showRoundSummaryScreen) {
                                     showRoundSummaryScreen = false
-                                    Log.d("MainViewModel", "GameStatus ist nicht mehr ROUND_END_SUMMARY. Verberge Runden-Zusammenfassung.")
                                 }
                             }
 
-                            gameResponse = response // ⬅️ Das MUSS erhalten bleiben!
+                            gameResponse = response
                         },
                         scope = viewModelScope
                     )
@@ -109,8 +107,7 @@ class MainViewModel : ViewModel() {
                 gameId = gameId,
                 onScoreboardReceived = { newBoard ->
                     scoreboard = newBoard
-                    Log.d("MainViewModel", "Scoreboard aktualisiert: $newBoard")
-                },
+                  },
                 scope = viewModelScope
             )
         }
@@ -143,30 +140,41 @@ class MainViewModel : ViewModel() {
         }
     }
 
-    fun playCard(cardString: String) {
-        viewModelScope.launch {
+    suspend fun playCard(cardString: String): Boolean {
 
+        return viewModelScope.async {
             if (gameId.isNotEmpty() && playerId.isNotEmpty()) {
-                GameStompClient.sendPlayCardRequest(gameId, playerId, cardString)
+                try {
+                    GameStompClient.sendPlayCardRequest(gameId, playerId, cardString)
+                    error = null
+                    true
+                } catch (e: IllegalStateException) {
+                    error = e.message ?: "Unbekannter Fehler beim Kartenlegen."
+                    false
+                } catch (e: IllegalArgumentException) {
+                    error = e.message ?: "Ungültige Karte zum Legen ausgewählt."
+                    false
+                } catch (e: Exception) {
+                    error = "Unerwarteter Fehler beim Kartenlegen: ${e.message}"
+                    false
+                }
             } else {
-                error = "Game ID or Player ID not set. Cannot play card."
+                error = "Game ID oder Player ID nicht gesetzt. Karte kann nicht gelegt werden."
+                false
             }
-        }
+        }.await()
     }
 
     fun clearLastTrickWinner() {
         gameResponse = gameResponse?.copy(lastTrickWinnerId = null)
     }
 
-    fun proceedToNextRound() { // NEU: Methode
+    fun proceedToNextRound() {
         viewModelScope.launch {
             if (gameId.isNotEmpty()) {
-                GameStompClient.sendProceedToNextRound(gameId) // NEU: Aufruf an GameStompClient
-                // Nach dem Senden der Anfrage erwarten wir eine neue GameResponse,
-                // die den Status auf PREDICTION setzen sollte und den Zusammenfassungsbildschirm ausblendet.
+                GameStompClient.sendProceedToNextRound(gameId)
             } else {
-                Log.e("MainViewModel", "Cannot proceed to next round: gameId is empty.")
-            }
+              }
         }
     }
 

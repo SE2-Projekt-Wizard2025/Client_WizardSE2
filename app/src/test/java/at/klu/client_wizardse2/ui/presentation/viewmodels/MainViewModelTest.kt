@@ -26,7 +26,8 @@ class MainViewModelTest {
         mockkObject(GameStompClient)
         mockkStatic(Log::class)
         every { Log.d(any(), any()) } returns 0
-        every { Log.e(any(), any(), any()) } returns 0
+        every { Log.e(any<String>(), any<String>()) } answers { 0 }
+        every { Log.e(any<String>(), any<String>(), any<Throwable>()) } answers { 0 }
     }
 
     @Test
@@ -273,7 +274,7 @@ class MainViewModelTest {
         advanceUntilIdle()
 
         assertNotNull(viewModel.error)
-        assertEquals("Game ID or Player ID not set. Cannot play card.", viewModel.error)
+        assertEquals("Game ID oder Player ID nicht gesetzt. Karte kann nicht gelegt werden.", viewModel.error)
         coVerify(exactly = 0) { GameStompClient.sendPlayCardRequest(any(), any(), any()) }
     }
 
@@ -288,9 +289,10 @@ class MainViewModelTest {
         advanceUntilIdle()
 
         assertNotNull(viewModel.error)
-        assertEquals("Game ID or Player ID not set. Cannot play card.", viewModel.error)
+        assertEquals("Game ID oder Player ID nicht gesetzt. Karte kann nicht gelegt werden.", viewModel.error)
         coVerify(exactly = 0) { GameStompClient.sendPlayCardRequest(any(), any(), any()) }
     }
+
 
     @Test
     fun `gameId, playerId, playerName are correctly assigned after connectAndJoin`() = runTest {

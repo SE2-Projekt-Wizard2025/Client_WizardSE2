@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -41,12 +42,13 @@ import at.klu.client_wizardse2.ui.presentation.sections.JoinSection
 import at.klu.client_wizardse2.ui.presentation.viewmodels.MainViewModel
 import at.klu.client_wizardse2.ui.presentation.screen.Screen
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import at.klu.client_wizardse2.model.response.GameStatus
 import at.klu.client_wizardse2.model.response.dto.CardDto
-
+import kotlinx.coroutines.launch
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -60,17 +62,13 @@ fun MainScreen() {
         val status = viewModel.gameResponse?.status
 
         if (status == GameStatus.ROUND_END_SUMMARY) {
-            Log.d("MainScreen", "Status ist ROUND_END_SUMMARY. RoundSummaryScreen wird angezeigt.")
 
         }else if (status == GameStatus.PREDICTION) {
-            Log.d("MainScreen", "Status ist PREDICTION. Wechsle zu Deal Screen.")
-            currentScreen = Screen.Deal
+           currentScreen = Screen.Deal
 
         } else if (status == GameStatus.PLAYING) {
-            Log.d("MainScreen", "Status ist PLAYING. Wechsle zu Game Screen.")
-            currentScreen = Screen.Game
+           currentScreen = Screen.Game
         } else if (status == GameStatus.ENDED) {
-            Log.d("MainScreen", "Status ist ENDED. Wechsle zu GameEnd Screen.")
             currentScreen = Screen.GameEnd
         }
     }
@@ -116,9 +114,9 @@ fun ScoreboardView(scoreboard: List<PlayerDto>, currentPlayerName: String) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = "Spieler", Modifier.weight(0.5f), style = MaterialTheme.typography.labelSmall)
+            Text(text = "Spieler", Modifier.weight(0.4f), style = MaterialTheme.typography.labelSmall)
             Text(text = "Runden", Modifier.weight(0.4f), style = MaterialTheme.typography.labelSmall)
-            Text(text = "Gesamt", Modifier.weight(0.1f), style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.End) // Hier auch TextAlign.End
+            Text(text = "Gesamt", Modifier.weight(0.2f), style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.End) // Hier auch TextAlign.End
         }
         Spacer(Modifier.height(4.dp))
 
@@ -140,9 +138,9 @@ fun ScoreboardView(scoreboard: List<PlayerDto>, currentPlayerName: String) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "${player.playerName}",
+                    text = player.playerName,
                     style = nameStyle,
-                    modifier = Modifier.weight(0.5f)
+                    modifier = Modifier.weight(0.4f)
                 )
                 // Zeigt die Punkte jeder Runde an
                 val roundScoresString =
@@ -157,7 +155,7 @@ fun ScoreboardView(scoreboard: List<PlayerDto>, currentPlayerName: String) {
                 Text(
                     text = "${player.score}",
                     style = nameStyle,
-                    modifier = Modifier.weight(0.1f),
+                    modifier = Modifier.weight(0.2f),
                     textAlign = TextAlign.End
                 )
             }
@@ -235,6 +233,8 @@ fun SimpleGameScreen(viewModel: MainViewModel) {
     }
     val currentRound = gameResponse?.currentRound ?: 0
 
+    val scope = rememberCoroutineScope()
+
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -248,6 +248,11 @@ fun SimpleGameScreen(viewModel: MainViewModel) {
             text = "${currentPlayer?.playerName ?: "..."} ist an der Reihe",
             style = MaterialTheme.typography.titleMedium
         )
+
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(text = "Trumpfkarte:")
+                gameResponse?.trumpCard?.let { CardView(card = it) } ?: Text(text = "- Keiner -")
+        }
 
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(text = "Zuletzt gespielt:")
@@ -283,40 +288,104 @@ fun SimpleGameScreen(viewModel: MainViewModel) {
                 items(gameResponse?.handCards ?: emptyList()) { card ->
                     val isMyTurn = viewModel.playerId == gameResponse?.currentPlayerId
                     if (isMyTurn) {
-                        CardView(card) { cardString ->
-                            viewModel.playCard(cardString)
+                        CardView(card = card) { cardString ->
+                            scope.launch {
+                                val success = viewModel.playCard(cardString)
+                                if (success) {
+
+                                } else {
+                                }
+                            }
                         }
                     } else {
-                        CardView(card)
+                        CardView(card = card)
                     }
                 }
             }
         }
+        viewModel.error?.let {
+            Text(
+                text = it,
+                color = Color.Red,
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.padding(top = 16.dp)
+            )
+        }
+    }
+}
+@Composable
+fun GameEndScreen(viewModel: MainViewModel) {
+    val winner = remember(viewModel.scoreboard) {
+        viewModel.scoreboard.maxByOrNull { it.score }
+    }
 
-        ScoreboardView(scoreboard = viewModel.scoreboard, currentPlayerName = viewModel.playerName)
+    Column(
+        modifier = Modifier.fillMaxSize().padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text("🏆 Spiel beendet! 🏆", style = MaterialTheme.typography.headlineLarge)
+        Spacer(Modifier.height(16.dp))
+        winner?.let {
+            Text(
+                "Gewinner: ${it.playerName} mit ${it.score} Punkten!",
+                style = MaterialTheme.typography.titleLarge
+            )
+        }
+        Spacer(Modifier.height(32.dp))
+        ScoreboardView(
+            scoreboard = viewModel.scoreboard,
+            currentPlayerName = viewModel.playerName
+        )
     }
 }
 
-        @Composable
-        fun GameEndScreen(viewModel: MainViewModel) {
-            val winner = remember(viewModel.scoreboard) {
-                viewModel.scoreboard.maxByOrNull { it.score }
-            }
+fun String.toCardDto(): CardDto? {
+    return when {
+        equals("WIZARD", ignoreCase = true) -> CardDto(
+            color = "SPECIAL",
+            value = "0",
+            type = "WIZARD"
+        )
 
-            Column(
-                modifier = Modifier.fillMaxSize().padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                Text("🏆 Spiel beendet! 🏆", style = MaterialTheme.typography.headlineLarge)
-                Spacer(Modifier.height(16.dp))
-                winner?.let {
-                    Text(
-                        "Gewinner: ${it.playerName} mit ${it.score} Punkten!",
-                        style = MaterialTheme.typography.titleLarge
-                    )
-                }
-                Spacer(Modifier.height(32.dp))
+        equals("JESTER", ignoreCase = true) -> CardDto(
+            color = "SPECIAL",
+            value = "0",
+            type = "JESTER"
+        )
+
+        contains("_") -> {
+            val parts = this.split("_")
+            if (parts.size == 2) {
+                CardDto(color = parts[0], value = parts[1], type = "NUMBER")
+            } else null
+        }
+
+        else -> null
+    }
+}
+
+@Composable
+fun RoundSummaryScreen(viewModel: MainViewModel, onContinue: () -> Unit) {
+    val currentRoundNumber = viewModel.gameResponse?.currentRound ?: 0
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Spacer(modifier = Modifier.weight(0.1f))
+        Text(
+            "🔁 Runde $currentRoundNumber beendet!",
+            style = MaterialTheme.typography.headlineMedium
+        )
+        Spacer(Modifier.height(12.dp))
+
+        LazyColumn(
+            modifier = Modifier.weight(1f)
+        ) {
+            item {
                 ScoreboardView(
                     scoreboard = viewModel.scoreboard,
                     currentPlayerName = viewModel.playerName
@@ -324,57 +393,19 @@ fun SimpleGameScreen(viewModel: MainViewModel) {
             }
         }
 
-        fun String.toCardDto(): CardDto? {
-            return when {
-                equals("WIZARD", ignoreCase = true) -> CardDto(
-                    color = "SPECIAL",
-                    value = "0",
-                    type = "WIZARD"
-                )
-
-                equals("JESTER", ignoreCase = true) -> CardDto(
-                    color = "SPECIAL",
-                    value = "0",
-                    type = "JESTER"
-                )
-
-                contains("_") -> {
-                    val parts = this.split("_")
-                    if (parts.size == 2) {
-                        CardDto(color = parts[0], value = parts[1], type = "NUMBER")
-                    } else null
-                }
-
-                else -> null
-            }
+        Spacer(Modifier.height(24.dp))
+        Button(onClick = onContinue) {
+            Text("Weiter zur nächsten Runde")
         }
+        Spacer(modifier = Modifier.weight(0.1f))
+    }
+}
 
-        @Composable
-        fun RoundSummaryScreen(viewModel: MainViewModel, onContinue: () -> Unit) {
-            val currentRoundNumber = viewModel.gameResponse?.currentRound ?: 0
-            val roundEnded = if (currentRoundNumber > 0) currentRoundNumber - 1 else 0
 
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text("🔁 Runde $roundEnded beendet!", style = MaterialTheme.typography.headlineMedium)
-                Spacer(Modifier.height(12.dp))
 
-                ScoreboardView(
-                    scoreboard = viewModel.scoreboard,
-                    currentPlayerName = viewModel.playerName
-                )
 
-                Spacer(Modifier.height(24.dp))
-                Button(onClick = onContinue) {
-                    Text("Weiter zur nächsten Runde")
-                }
-            }
-        }
+
+
 
 
 

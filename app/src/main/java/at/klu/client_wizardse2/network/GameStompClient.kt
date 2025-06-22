@@ -11,6 +11,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import org.hildan.krossbow.stomp.StompClient
@@ -188,7 +189,9 @@ object GameStompClient {
 
     suspend fun sendProceedToNextRound(gameId: String) {
         val jsonGameId = "\"$gameId\""
-        session?.sendText("/app/game/proceedToNextRound", jsonGameId)
+        withContext(Dispatchers.IO) {
+            session?.sendText("/app/game/proceedToNextRound", jsonGameId)
+        }
         Log.d(TAG, "Proceed to next round request sent for gameId: $gameId")
     }
 

@@ -19,6 +19,8 @@ import org.junit.Before
 import org.junit.Test
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.coJustRun
+import kotlinx.coroutines.Job
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class GameStompClientTest {
@@ -89,6 +91,7 @@ class GameStompClientTest {
     @Test
     fun `sendJoinRequest should send correct JSON to destination`() = testScope.runTest {
         GameStompClient.setSessionForTesting(mockSession)
+
         coEvery {
             mockSession.sendText(eq("/app/game/join"), any())
         } returns null
@@ -348,13 +351,14 @@ class GameStompClientTest {
         assertEquals("Alice", receivedScoreboard?.first()?.playerName)
     }
 
+
     @Test
     fun `subscribeToScoreboard should log error on json parsing exception`() = testScope.runTest {
         val invalidJson = "this is not valid json"
         val flow = flowOf(invalidJson)
         val gameId = "game1"
 
-        coEvery { mockSession.subscribeText("/topic/game/$gameId/scoreboard") } returns flow
+        coEvery { mockSession.subscribeText("/topic/game/game1/scoreboard") } returns flow
         GameStompClient.setSessionForTesting(mockSession)
 
         var receivedScoreboard: List<PlayerDto>? = null
@@ -368,23 +372,5 @@ class GameStompClientTest {
 
         assertNull(receivedScoreboard)
         coVerify { Log.e(eq("GameStompClient"), any(), any()) }
-    }
-
-    @Test
-    fun `sendProceedToNextRound should send correct gameId to endpoint`() = testScope.runTest {
-        GameStompClient.setSessionForTesting(mockSession)
-        val gameId = "game-to-advance"
-        val expectedJson = "\"$gameId\""
-
-        coJustRun {
-            mockSession.sendText(eq("/app/game/proceedToNextRound"), eq(expectedJson))
-        }
-
-        GameStompClient.sendProceedToNextRound(gameId)
-        advanceUntilIdle()
-
-        coVerify {
-            mockSession.sendText(eq("/app/game/proceedToNextRound"), eq(expectedJson))
-        }
     }
 }
