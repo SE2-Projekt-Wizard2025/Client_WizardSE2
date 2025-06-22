@@ -1,32 +1,18 @@
 package at.klu.client_wizardse2.ui.presentation.screen
 
-import android.util.Log
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -34,22 +20,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import at.klu.client_wizardse2.model.response.GameResponse
-import at.klu.client_wizardse2.model.response.dto.PlayerDto
-//import androidx.hilt.navigation.compose.hiltViewModel
-//import androidx.lifecycle.viewmodel.compose.viewModel
-import at.klu.client_wizardse2.ui.presentation.sections.JoinSection
 import at.klu.client_wizardse2.ui.presentation.viewmodels.MainViewModel
-import at.klu.client_wizardse2.ui.presentation.screen.Screen
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.style.TextAlign
 import at.klu.client_wizardse2.model.response.GameStatus
-import at.klu.client_wizardse2.model.response.dto.CardDto
 import kotlinx.coroutines.launch
-
+import at.klu.client_wizardse2.ui.presentation.components.ScoreboardView
+import at.klu.client_wizardse2.ui.presentation.components.CardView
+import at.klu.client_wizardse2.ui.presentation.components.toCardDto
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -102,127 +82,6 @@ fun MainScreen() {
     }
 }
 
-@Composable
-fun ScoreboardView(scoreboard: List<PlayerDto>, currentPlayerName: String) {
-    Column(modifier = Modifier.padding(16.dp)) {
-        Text("📊 Scoreboard", style = MaterialTheme.typography.titleMedium)
-
-        val sortedScoreboard = scoreboard.sortedByDescending { it.score }
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(text = "Spieler", Modifier.weight(0.4f), style = MaterialTheme.typography.labelSmall)
-            Text(text = "Runden", Modifier.weight(0.4f), style = MaterialTheme.typography.labelSmall)
-            Text(text = "Gesamt", Modifier.weight(0.2f), style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.End) // Hier auch TextAlign.End
-        }
-        Spacer(Modifier.height(4.dp))
-
-        sortedScoreboard.forEachIndexed { index, player ->
-            val isCurrentPlayer = player.playerName == currentPlayerName
-            val rank = index + 1
-
-            val nameStyle = if (isCurrentPlayer) {
-                MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.primary)
-            } else {
-                MaterialTheme.typography.bodyLarge
-            }
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = player.playerName,
-                    style = nameStyle,
-                    modifier = Modifier.weight(0.4f)
-                )
-                // Zeigt die Punkte jeder Runde an
-                val roundScoresString =
-                    player.roundScores?.joinToString(", ") ?: "N/A"
-                Text(
-                    text = roundScoresString,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.weight(0.4f)
-                )
-
-                // Zeigt die Gesamtpunktzahl an
-                Text(
-                    text = "${player.score}",
-                    style = nameStyle,
-                    modifier = Modifier.weight(0.2f),
-                    textAlign = TextAlign.End
-                )
-            }
-
-        }
-    }
-}
-
-@Composable
-fun CardView(card: CardDto, onCardClick: ((String) -> Unit)? = null) {
-    val backgroundColor = when (card.color?.uppercase()) {
-        "RED" -> Color.Red
-        "BLUE" -> Color.Blue
-        "GREEN" -> Color.Green
-        "YELLOW" -> Color.Yellow
-        else -> Color.LightGray
-    }
-
-    val textColor = if (card.color?.uppercase() in listOf("YELLOW", "GREEN")) Color.Black else Color.White
-
-    val actualCardString = when (card.type) {
-        "WIZARD" -> "WIZARD"
-        "JESTER" -> "JESTER"
-        else -> "${card.color}_${card.value}"
-    }
-
-    val cardModifier = Modifier
-        .width(80.dp)
-        .height(120.dp)
-        .then(
-            if (onCardClick != null) Modifier.clickable { onCardClick(actualCardString) }
-            else Modifier
-        )
-
-    Card(
-        modifier = cardModifier,
-        colors = CardDefaults.cardColors(containerColor = backgroundColor),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        shape = RoundedCornerShape(12.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(8.dp),
-            verticalArrangement = Arrangement.SpaceBetween,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = when (card.type) {
-                    "WIZARD" -> "Wizard"
-                    "JESTER" -> "Narr"
-                    else -> card.color ?: "?"
-                },
-                style = MaterialTheme.typography.labelMedium,
-                color = textColor
-            )
-            Text(
-                text = when (card.type) {
-                    "WIZARD", "JESTER" -> ""
-                    else -> card.value ?: "?"
-                },
-                style = MaterialTheme.typography.titleLarge,
-                color = textColor
-            )
-        }
-    }
-}
 
 @Composable
 fun SimpleGameScreen(viewModel: MainViewModel) {
@@ -337,31 +196,6 @@ fun GameEndScreen(viewModel: MainViewModel) {
             scoreboard = viewModel.scoreboard,
             currentPlayerName = viewModel.playerName
         )
-    }
-}
-
-fun String.toCardDto(): CardDto? {
-    return when {
-        equals("WIZARD", ignoreCase = true) -> CardDto(
-            color = "SPECIAL",
-            value = "0",
-            type = "WIZARD"
-        )
-
-        equals("JESTER", ignoreCase = true) -> CardDto(
-            color = "SPECIAL",
-            value = "0",
-            type = "JESTER"
-        )
-
-        contains("_") -> {
-            val parts = this.split("_")
-            if (parts.size == 2) {
-                CardDto(color = parts[0], value = parts[1], type = "NUMBER")
-            } else null
-        }
-
-        else -> null
     }
 }
 

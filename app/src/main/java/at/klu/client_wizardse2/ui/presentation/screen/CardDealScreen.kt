@@ -1,19 +1,18 @@
 package at.klu.client_wizardse2.ui.presentation.screen
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.Alignment
-import at.klu.client_wizardse2.model.response.dto.CardDto
 import at.klu.client_wizardse2.ui.presentation.viewmodels.MainViewModel
 import androidx.compose.ui.graphics.Color
 import kotlinx.coroutines.launch
+import at.klu.client_wizardse2.ui.presentation.components.CardView
+
 
 @Composable
 fun CardDealScreen(viewModel: MainViewModel, onPredictionComplete: () -> Unit) {
@@ -114,59 +113,3 @@ fun CardDealScreen(viewModel: MainViewModel, onPredictionComplete: () -> Unit) {
     }
 }
 
-@Composable
-fun CardView(card: CardDto) {
-    val backgroundColor = when (card.color?.uppercase()) {
-        "RED" -> Color.Red
-        "BLUE" -> Color.Blue
-        "GREEN" -> Color.Green
-        "YELLOW" -> Color.Yellow
-        else -> Color.LightGray
-    }
-
-    val textColor = if (card.color?.uppercase() in listOf("YELLOW", "GREEN")) Color.Black else Color.White
-
-    val actualCardString = when (card.type) {
-        "WIZARD" -> "WIZARD"
-        "JESTER" -> "JESTER"
-        else -> "${card.color}_${card.value}"
-    }
-
-    val cardModifier = Modifier
-        .width(80.dp)
-        .height(120.dp)
-
-
-    Card(
-        modifier = cardModifier,
-        colors = CardDefaults.cardColors(containerColor = backgroundColor),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        shape = RoundedCornerShape(12.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(8.dp),
-            verticalArrangement = Arrangement.SpaceBetween,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = when (card.type) {
-                    "WIZARD" -> "Wizard"
-                    "JESTER" -> "Narr"
-                    else -> card.color ?: "?"
-                },
-                style = MaterialTheme.typography.labelMedium,
-                color = textColor
-            )
-            Text(
-                text = when (card.type) {
-                    "WIZARD", "JESTER" -> ""
-                    else -> card.value ?: "?"
-                },
-                style = MaterialTheme.typography.titleLarge,
-                color = textColor
-            )
-        }
-    }
-}

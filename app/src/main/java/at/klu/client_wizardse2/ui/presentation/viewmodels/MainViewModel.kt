@@ -43,7 +43,6 @@ class MainViewModel : ViewModel() {
         internal set
 
     var showRoundSummaryScreen by mutableStateOf(false)
-        private set
 
     var hasSubmittedPrediction by mutableStateOf(false)
 

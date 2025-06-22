@@ -281,7 +281,7 @@ class MainViewModelTest {
     @Test
     fun `playCard should set error if playerId is not set`() = runTest {
         viewModel.gameId = TEST_GAME_ID
-        viewModel.playerId = "" // PlayerId ist nicht gesetzt
+        viewModel.playerId = ""
 
         coJustRun { GameStompClient.sendPlayCardRequest(any(), any(), any()) }
 
@@ -310,7 +310,7 @@ class MainViewModelTest {
     fun `startGame should not crash when gameId is empty`() = runTest {
         coEvery { GameStompClient.sendStartGameRequest(any()) } just Runs
 
-        viewModel.gameId = "" // explizit leer
+        viewModel.gameId = ""
         viewModel.startGame()
         advanceUntilIdle()
 
@@ -319,7 +319,7 @@ class MainViewModelTest {
 
     @Test
     fun `connectAndJoin does not crash when session is null`() = runTest {
-        // Simuliere connect() als erfolgreich, aber ohne Session gesetzt
+
         coEvery { GameStompClient.connect() } returns true
         coEvery {
             GameStompClient.subscribeToGameUpdates(playerId = any(), onUpdate = any(), scope = any())
@@ -331,7 +331,7 @@ class MainViewModelTest {
         viewModel.connectAndJoin(TEST_GAME_ID, TEST_PLAYER_ID, TEST_PLAYER_NAME)
         advanceUntilIdle()
 
-        assertNull(viewModel.error) // Kein Fehler, aber keine Response erwartet
+        assertNull(viewModel.error)
     }
 
     @Test
@@ -350,5 +350,153 @@ class MainViewModelTest {
         assertEquals(TEST_PLAYER_NAME, viewModel.playerName)
     }
 
+    @Test
+    fun `connectAndJoin should set showRoundSummaryScreen true if status is ROUND_END_SUMMARY`() = runTest {
+        coEvery { GameStompClient.connect() } returns true
+        @Suppress("UNCHECKED_CAST")
+        coEvery {
+            GameStompClient.subscribeToGameUpdates(playerId = any(), onUpdate = any(), scope = any())
+        } answers {
+            val callback = args[1] as (GameResponse) -> Unit
+
+            val roundSummaryResponse = fakeResponse.copy(status = GameStatus.ROUND_END_SUMMARY)
+            callback(roundSummaryResponse)
+        }
+        coEvery { GameStompClient.sendJoinRequest(any(), any(), any()) } just Runs
+        coEvery { GameStompClient.subscribeToErrors(any(), any()) } just Runs
+        coEvery { GameStompClient.subscribeToScoreboard(any(), any(), any()) } just Runs
+
+        viewModel.connectAndJoin(TEST_GAME_ID, TEST_PLAYER_ID, TEST_PLAYER_NAME)
+        advanceUntilIdle()
+
+        assertEquals(GameStatus.ROUND_END_SUMMARY, viewModel.gameResponse?.status)
+        assertTrue(viewModel.showRoundSummaryScreen)
+    }
+
+    @Test
+    fun `connectAndJoin should set showRoundSummaryScreen false if status is not ROUND_END_SUMMARY and it was previously true`() = runTest {
+        viewModel.showRoundSummaryScreen = true
+
+        coEvery { GameStompClient.connect() } returns true
+        @Suppress("UNCHECKED_CAST")
+        coEvery {
+            GameStompClient.subscribeToGameUpdates(playerId = any(), onUpdate = any(), scope = any())
+        } answers {
+            val callback = args[1] as (GameResponse) -> Unit
+
+            val playingResponse = fakeResponse.copy(status = GameStatus.PLAYING)
+            callback(playingResponse)
+        }
+        coEvery { GameStompClient.sendJoinRequest(any(), any(), any()) } just Runs
+        coEvery { GameStompClient.subscribeToErrors(any(), any()) } just Runs
+        coEvery { GameStompClient.subscribeToScoreboard(any(), any(), any()) } just Runs
+
+        // When
+        viewModel.connectAndJoin(TEST_GAME_ID, TEST_PLAYER_ID, TEST_PLAYER_NAME)
+        advanceUntilIdle()
+
+        // Then
+        assertEquals(GameStatus.PLAYING, viewModel.gameResponse?.status)
+        assertFalse(viewModel.showRoundSummaryScreen)
+    }
+
+    @Test
+    fun `sendPrediction should set specific error message if prediction is not allowed`() = runTest {
+        val gameId = "game-1"
+        val playerId = "player-1"
+        val prediction = 3
+        val specificErrorMessage = "Diese Vorhersage ergibt exakt die Anzahl der Stiche und ist damit verboten."
+
+        coEvery { GameStompClient.sendPrediction(any(), any(), any()) } throws RuntimeException(specificErrorMessage)
+
+        val success = viewModel.sendPrediction(gameId, playerId, prediction)
+        advanceUntilIdle()
+
+        assertFalse(success)
+        assertEquals("❌ Vorhersage nicht erlaubt! Die Summe der Stiche stimmt. Bitte wählen Sie einen anderen Wert ein.", viewModel.error)
+        coVerify { GameStompClient.sendPrediction(eq(gameId), eq(playerId), eq(prediction)) }
+    }
+
+    @Test
+    fun `sendPrediction should set generic error message if exception occurs without specific message`() = runTest {
+        val gameId = "game-1"
+        val playerId = "player-1"
+        val prediction = 3
+
+        coEvery { GameStompClient.sendPrediction(any(), any(), any()) } throws RuntimeException(null as String?)
+
+        val success = viewModel.sendPrediction(gameId, playerId, prediction)
+        advanceUntilIdle()
+
+        assertFalse(success)
+        assertEquals("Error: Unbekannter Fehler bei der Vorhersage.", viewModel.error)
+    }
+
+    @Test
+    fun `playCard should set error if IllegalStateException occurs`() = runTest {
+        val testCardString = "RED_10"
+        viewModel.gameId = TEST_GAME_ID
+        viewModel.playerId = TEST_PLAYER_ID
+
+        coEvery { GameStompClient.sendPlayCardRequest(any(), any(), any()) } throws IllegalStateException("Das Spiel ist nicht aktiv.")
+
+        val success = viewModel.playCard(testCardString)
+        advanceUntilIdle()
+
+        assertFalse(success)
+        assertEquals("Das Spiel ist nicht aktiv.", viewModel.error)
+        coVerify { GameStompClient.sendPlayCardRequest(eq(TEST_GAME_ID), eq(TEST_PLAYER_ID), eq(testCardString)) }
+    }
+
+    @Test
+    fun `playCard should set error if IllegalArgumentException occurs`() = runTest {
+        val testCardString = "INVALID_CARD"
+        viewModel.gameId = TEST_GAME_ID
+        viewModel.playerId = TEST_PLAYER_ID
+
+        coEvery { GameStompClient.sendPlayCardRequest(any(), any(), any()) } throws IllegalArgumentException("Ungültige Karte zum Legen.")
+
+        val success = viewModel.playCard(testCardString)
+        advanceUntilIdle()
+
+        assertFalse(success)
+        assertEquals("Ungültige Karte zum Legen.", viewModel.error)
+        coVerify { GameStompClient.sendPlayCardRequest(eq(TEST_GAME_ID), eq(TEST_PLAYER_ID), eq(testCardString)) }
+    }
+
+    @Test
+    fun `playCard should set generic error if unexpected exception occurs`() = runTest {
+        val testCardString = "RED_10"
+        viewModel.gameId = TEST_GAME_ID
+        viewModel.playerId = TEST_PLAYER_ID
+
+        coEvery { GameStompClient.sendPlayCardRequest(any(), any(), any()) } throws RuntimeException("DB error")
+
+        val success = viewModel.playCard(testCardString)
+        advanceUntilIdle()
+
+        assertFalse(success)
+        assertEquals("Unerwarteter Fehler beim Kartenlegen: DB error", viewModel.error)
+        coVerify { GameStompClient.sendPlayCardRequest(eq(TEST_GAME_ID), eq(TEST_PLAYER_ID), eq(testCardString)) }
+    }
+
+    @Test
+    fun `clearLastTrickWinner should not crash if gameResponse is null`() {
+        viewModel.gameResponse = null
+        viewModel.clearLastTrickWinner()
+        assertNull(viewModel.gameResponse)
+    }
+
+    @Test
+    fun `proceedToNextRound should not call sendProceedToNextRound if gameId is empty`() = runTest {
+        viewModel.gameId = ""
+
+        coJustRun { GameStompClient.sendProceedToNextRound(any()) }
+
+        viewModel.proceedToNextRound()
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { GameStompClient.sendProceedToNextRound(any()) }
+    }
 
 }
