@@ -360,7 +360,7 @@ fun SimpleGameScreen(viewModel: MainViewModel) {
         @Composable
         fun RoundSummaryScreen(viewModel: MainViewModel, onContinue: () -> Unit) {
             val currentRoundNumber = viewModel.gameResponse?.currentRound ?: 0
-            val roundEnded = if (currentRoundNumber > 0) currentRoundNumber - 1 else 0
+            val roundEnded = if (currentRoundNumber > 0) currentRoundNumber else 0
 
             Column(
                 modifier = Modifier
