@@ -184,6 +184,7 @@ class MainViewModel(private val context: Context) : ViewModel() {
                 )
 
                 //hier ggf _cheatStates[playerID] wieder false setzen, aber dann ist Aufdecken von Cheatern unmöglich..?
+                _cheatStates[playerId] = false
             } else {
                 error = "Game ID or Player ID not set. Cannot play card."
             }
