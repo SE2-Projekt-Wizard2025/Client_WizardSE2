@@ -247,6 +247,11 @@ fun SimpleGameScreen(viewModel: MainViewModel) {
         )
 
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("Trumpfkarte:")
+            gameResponse?.trumpCard?.let { CardView(it) } ?: Text("- Keiner -")
+        }
+
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(text = "Zuletzt gespielt:")
             val lastPlayedCardString = gameResponse?.lastPlayedCard
 
