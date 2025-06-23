@@ -144,7 +144,7 @@ class MainViewModelTest {
             players = emptyList(),
             handCards = emptyList(),
             lastPlayedCard = null,
-            lastTrickWinnerId = null
+            lastTrickWinnerId="p1"
         )
 
         assertTrue(viewModel.hasGameStarted())
@@ -160,7 +160,7 @@ class MainViewModelTest {
             players = emptyList(),
             handCards = emptyList(),
             lastPlayedCard = null,
-            lastTrickWinnerId = null
+            lastTrickWinnerId=null
         )
 
         assertFalse(viewModel.hasGameStarted())
@@ -205,7 +205,7 @@ class MainViewModelTest {
             players = emptyList(),
             handCards = emptyList(),
             lastPlayedCard = null,
-            lastTrickWinnerId = null
+            lastTrickWinnerId= TEST_PLAYER_ID
         )
     }
 

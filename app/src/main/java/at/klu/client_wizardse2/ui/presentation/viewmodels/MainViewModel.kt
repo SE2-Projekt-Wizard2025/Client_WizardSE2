@@ -21,7 +21,7 @@ import at.klu.client_wizardse2.model.response.dto.PlayerDto
 import at.klu.client_wizardse2.network.GameStompClient
 import kotlinx.coroutines.delay
 import org.jetbrains.annotations.VisibleForTesting
-
+import at.klu.client_wizardse2.model.response.GameStatus
 
 class MainViewModel(private val context: Context) : ViewModel() {
 
@@ -43,7 +43,8 @@ class MainViewModel(private val context: Context) : ViewModel() {
         @VisibleForTesting
         internal set
 
-    var roundJustEnded by mutableStateOf(false)
+    var showRoundSummaryScreen by mutableStateOf(false)
+        private set
 
     var hasSubmittedPrediction by mutableStateOf(false)
 
@@ -96,6 +97,15 @@ class MainViewModel(private val context: Context) : ViewModel() {
                                 error = null
                                 lastKnownRound = response.currentRound
                             }
+                            if (response.status == GameStatus.ROUND_END_SUMMARY) { // NEU: Prüfung auf ROUND_END_SUMMARY
+                                showRoundSummaryScreen = true // Signalisiert der UI, den Zusammenfassungsbildschirm anzuzeigen
+                                Log.d("MainViewModel", "GameStatus ist ROUND_END_SUMMARY. Zeige Runden-Zusammenfassung an.")
+                            } else {
+                               if (showRoundSummaryScreen) {
+                                    showRoundSummaryScreen = false
+                                    Log.d("MainViewModel", "GameStatus ist nicht mehr ROUND_END_SUMMARY. Verberge Runden-Zusammenfassung.")
+                                }
+                            }
 
                             gameResponse = response // ⬅️ Das MUSS erhalten bleiben!
                         },
@@ -126,7 +136,10 @@ class MainViewModel(private val context: Context) : ViewModel() {
         viewModelScope.launch {
             GameStompClient.subscribeToScoreboard(
                 gameId = gameId,
-                onScoreboardReceived = { newBoard -> scoreboard = newBoard },
+                onScoreboardReceived = { newBoard ->
+                    scoreboard = newBoard
+                    Log.d("MainViewModel", "Scoreboard aktualisiert: $newBoard")
+                },
                 scope = viewModelScope
             )
         }
@@ -140,7 +153,7 @@ class MainViewModel(private val context: Context) : ViewModel() {
     }
 
     fun hasGameStarted(): Boolean {
-        return gameResponse?.status?.name == "PLAYING"
+        return gameResponse?.status == GameStatus.PLAYING && !showRoundSummaryScreen
     }
 
     suspend fun sendPrediction(gameId: String, playerId: String, prediction: Int): Boolean {
@@ -179,6 +192,18 @@ class MainViewModel(private val context: Context) : ViewModel() {
 
     fun clearLastTrickWinner() {
         gameResponse = gameResponse?.copy(lastTrickWinnerId = null)
+    }
+
+    fun proceedToNextRound() { // NEU: Methode
+        viewModelScope.launch {
+            if (gameId.isNotEmpty()) {
+                GameStompClient.sendProceedToNextRound(gameId) // NEU: Aufruf an GameStompClient
+                // Nach dem Senden der Anfrage erwarten wir eine neue GameResponse,
+                // die den Status auf PREDICTION setzen sollte und den Zusammenfassungsbildschirm ausblendet.
+            } else {
+                Log.e("MainViewModel", "Cannot proceed to next round: gameId is empty.")
+            }
+        }
     }
 
 }
