@@ -1,6 +1,8 @@
 package at.klu.client_wizardse2.ui.presentation.viewmodels
 
 import android.util.Log
+import android.content.Context
+import at.klu.client_wizardse2.helper.FlashlightHelper
 import at.klu.client_wizardse2.model.response.GameResponse
 import at.klu.client_wizardse2.model.response.GameStatus
 import at.klu.client_wizardse2.model.response.dto.PlayerDto
@@ -18,11 +20,15 @@ class MainViewModelTest {
 
     private lateinit var viewModel: MainViewModel
     private val testDispatcher = StandardTestDispatcher()
+    private lateinit var context: Context
 
     @Before
     fun setup() {
         Dispatchers.setMain(testDispatcher)
-        viewModel = MainViewModel()
+        context = mockk(relaxed = true)
+        val mockFlashlight = mockk<FlashlightHelper>(relaxed = true)
+        viewModel = MainViewModel(context)
+        viewModel.flashlightHelper = mockFlashlight
         mockkObject(GameStompClient)
         mockkStatic(Log::class)
         every { Log.d(any(), any()) } returns 0
@@ -136,7 +142,6 @@ class MainViewModelTest {
 
     @Test
     fun `hasGameStarted should return true when game status is PLAYING`() {
-        val viewModel = MainViewModel()
         viewModel.gameResponse = GameResponse(
             gameId = "test-id",
             status = GameStatus.PLAYING,
@@ -152,7 +157,6 @@ class MainViewModelTest {
 
     @Test
     fun `hasGameStarted should return false when game status is not PLAYING`() {
-        val viewModel = MainViewModel()
         viewModel.gameResponse = GameResponse(
             gameId = "test-id",
             status = GameStatus.LOBBY,
@@ -168,7 +172,6 @@ class MainViewModelTest {
 
     @Test
     fun `startGame should call GameStompClient with correct gameId`() = runTest {
-        val viewModel = MainViewModel()
         val testGameId = "test-game-123"
         viewModel.gameId = testGameId
 
@@ -211,7 +214,6 @@ class MainViewModelTest {
 
     @Test
     fun `scoreboard should be updated correctly`() = runTest {
-        val viewModel = MainViewModel()
 
         val sampleScoreboard = listOf(
             PlayerDto(
@@ -350,7 +352,6 @@ class MainViewModelTest {
 
     @Test
     fun `clearLastTrickWinner should nullify lastTrickWinnerId`() {
-        val viewModel = MainViewModel()
         viewModel.gameResponse = GameResponse(
             gameId = "game1",
             status = GameStatus.PLAYING,

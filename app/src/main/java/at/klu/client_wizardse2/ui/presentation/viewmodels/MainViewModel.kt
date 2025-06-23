@@ -25,6 +25,9 @@ import at.klu.client_wizardse2.model.response.GameStatus
 
 class MainViewModel(private val context: Context) : ViewModel() {
 
+    lateinit var flashlightHelper: FlashlightHelper
+        @VisibleForTesting set
+
     var gameResponse by mutableStateOf<GameResponse?>(null)
         @VisibleForTesting set
 
@@ -54,7 +57,7 @@ class MainViewModel(private val context: Context) : ViewModel() {
     private val _cheatStates = mutableStateMapOf<String, Boolean>() //@Elias
     val cheatStates: Map<String, Boolean> get() = _cheatStates
 
-    private val flashlightHelper = FlashlightHelper(context)
+    //private val flashlightHelper = FlashlightHelper(context)
 
 
     fun isCheating(playerId: String): Boolean {
@@ -62,6 +65,10 @@ class MainViewModel(private val context: Context) : ViewModel() {
     }
 
     fun toggleCheatState(playerId: String) {
+        if (!::flashlightHelper.isInitialized) {
+            flashlightHelper = FlashlightHelper(context)
+        }
+
         _cheatStates[playerId] = !(_cheatStates[playerId] ?: false)
 
         if (isCheating(playerId)) { //automatisch aktivieren wenn button gedrückt wird
@@ -79,6 +86,9 @@ class MainViewModel(private val context: Context) : ViewModel() {
 
 
     fun connectAndJoin(gameId: String, playerId: String, playerName: String) {
+        if (!::flashlightHelper.isInitialized) {
+            flashlightHelper = FlashlightHelper(context)
+        }
         this.gameId = gameId
         this.playerId = playerId
         this.playerName = playerName
