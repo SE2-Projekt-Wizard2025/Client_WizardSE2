@@ -20,7 +20,7 @@ sonar {
             "sonar.coverage.jacoco.xmlReportPaths",
             "${project.projectDir}/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml"
         )
-        property("sonar.coverage.exclusions", "**/screen/**, **/sections/**, **/model/**, **/theme/**, **/MainActivity.kt, **/response/**")
+        property("sonar.coverage.exclusions", "**/screen/**, **/sections/**, **/model/**, **/theme/**, **/MainActivity.kt, **/response/**, **/components/**")
     }
 }
 android {
@@ -117,6 +117,8 @@ dependencies {
     //implementation(libs.androidx.hilt.navigation.compose)
     //implementation(libs.hilt.android)
     //kapt(libs.hilt.android.compiler)
+    implementation("androidx.camera:camera-camera2:1.3.0") //Diese Version verwenden um sicherzugehen
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.2") //wrsl nicht gebraucht
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.krossbow.stomp.core)
     implementation(libs.krossbow.websocket.okhttp)

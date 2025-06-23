@@ -6,5 +6,6 @@ data class GameRequest(
     val playerId: String,
     val playerName: String? = null,
     val card: String? = null,
-    val action: String? = null
+    val action: String? = null,
+    val cheating: Boolean? = null
 )

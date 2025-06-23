@@ -10,5 +10,6 @@ data class PlayerDto(
     val ready: Boolean,
 
     val tricksWon: Int = 0,
-    val prediction: Int?= null
+    val prediction: Int?= null,
+    val roundScores: List<Int>? = null
 )

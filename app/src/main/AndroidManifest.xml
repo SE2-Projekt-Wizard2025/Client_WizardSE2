@@ -26,5 +26,13 @@
         </activity>
     </application>
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Required only to control flashlight (no photo/video access) -->
+    <uses-permission
+        android:name="android.permission.CAMERA"
+        tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.FLASHLIGHT" />
+
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.flash" android:required="false" />
 
 </manifest>

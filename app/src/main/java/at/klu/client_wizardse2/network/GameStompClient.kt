@@ -11,6 +11,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import org.hildan.krossbow.stomp.StompClient
 import org.hildan.krossbow.stomp.StompSession
@@ -84,9 +85,14 @@ object GameStompClient {
         session?.sendText("/app/game/join", jsonBody)
     }
     suspend fun sendPrediction(gameId: String, playerId: String, prediction: Int) {
-        val request = PredictionRequest(gameId, playerId, prediction)
-        val jsonBody = json.encodeToString(PredictionRequest.serializer(), request)
-        session?.sendText("/app/game/predict", jsonBody)
+        try {
+            val request = PredictionRequest(gameId, playerId, prediction)
+            val jsonBody = json.encodeToString(PredictionRequest.serializer(), request)
+            session?.sendText("/app/game/predict", jsonBody)
+        } catch (e: Exception) {
+            Log.e(TAG, "Fehler beim Senden der Vorhersage: ${e.message}", e)
+            throw e
+        }
     }
 
 
@@ -134,11 +140,12 @@ object GameStompClient {
         session?.sendText("/app/game/start", jsonGameId)
     }
 
-    suspend fun sendPlayCardRequest(gameId: String, playerId: String, card: String) {
+    suspend fun sendPlayCardRequest(gameId: String, playerId: String, card: String, isCheating: Boolean = false) {
         val request = GameRequest(
             gameId = gameId,
             playerId = playerId,
-            card = card
+            card = card,
+            cheating = isCheating
         )
         val jsonBody = json.encodeToString(GameRequest.serializer(), request)
         session?.sendText("/app/game/play", jsonBody)
@@ -157,8 +164,10 @@ object GameStompClient {
         val topic = "/topic/game/$gameId/scoreboard"
         session?.subscribeText(topic)?.onEach { message ->
             try {
-                val type = object : TypeToken<List<PlayerDto>>() {}.type
-                val scoreboard = Gson().fromJson<List<PlayerDto>>(message, type)
+                val scoreboard = json.decodeFromString(
+                    ListSerializer(PlayerDto.serializer()),
+                    message
+                )
                 onScoreboardReceived(scoreboard)
             } catch (e: Exception) {
                 Log.e(TAG, "Fehler beim Parsen des Scoreboards: ${e.message}", e)
@@ -166,4 +175,23 @@ object GameStompClient {
         }?.launchIn(scope)
     }
 
-}
+    suspend fun subscribeToErrors(
+        playerId: String,
+        onError: (String) -> Unit,
+        scope: CoroutineScope = CoroutineScope(Dispatchers.Main)
+    ) {
+        val topic = "/topic/errors/$playerId"
+        session?.subscribeText(topic)?.onEach { message ->
+            Log.e(TAG, "Fehler empfangen: $message")
+            onError(message)
+        }?.launchIn(scope)
+    }
+
+    suspend fun sendProceedToNextRound(gameId: String) {
+        val jsonGameId = "\"$gameId\""
+        session?.sendText("/app/game/proceedToNextRound", jsonGameId)
+        Log.d(TAG, "Proceed to next round request sent for gameId: $gameId")
+    }
+
+
+ }

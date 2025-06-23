@@ -1,0 +1,420 @@
+Index: app/src/main/java/at/klu/client_wizardse2/ui/presentation/screen/CardDealScreen.kt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>package at.klu.client_wizardse2.ui.presentation.screen\r\n\r\n\r\nimport androidx.compose.foundation.layout.*\r\nimport androidx.compose.foundation.lazy.LazyRow\r\nimport androidx.compose.foundation.lazy.items\r\nimport androidx.compose.foundation.shape.RoundedCornerShape\r\nimport androidx.compose.material3.*\r\nimport androidx.compose.runtime.*\r\nimport androidx.compose.ui.Modifier\r\nimport androidx.compose.ui.unit.dp\r\nimport androidx.compose.ui.Alignment\r\nimport at.klu.client_wizardse2.model.response.dto.CardDto\r\nimport at.klu.client_wizardse2.ui.presentation.viewmodels.MainViewModel\r\nimport androidx.compose.ui.graphics.Color\r\nimport kotlinx.coroutines.launch\r\n\r\n@Composable\r\nfun CardDealScreen(viewModel: MainViewModel, onPredictionComplete: () -> Unit) {\r\n    val handCards = viewModel.gameResponse?.handCards ?: emptyList()\r\n    val response = viewModel.gameResponse\r\n    val trumpCard = response?.trumpCard\r\n    val currentPredictionPlayerId = response?.currentPredictionPlayerId\r\n    val isMyTurn = currentPredictionPlayerId == viewModel.playerId\r\n    var predictionInput by remember { mutableStateOf(\"\") }\r\n    val scope = rememberCoroutineScope()\r\n    val hasSubmittedPrediction = viewModel.hasSubmittedPrediction\r\n\r\n    val currentPredictionPlayerName = viewModel.gameResponse?.players\r\n        ?.find { it.playerId == currentPredictionPlayerId }\r\n        ?.playerName ?: \"Unbekannt\"\r\n\r\n    val error = viewModel.error\r\n\r\n\r\n    Column(\r\n        modifier = Modifier\r\n            .fillMaxSize()\r\n            .padding(24.dp),\r\n        verticalArrangement = Arrangement.spacedBy(24.dp),\r\n        horizontalAlignment = Alignment.CenterHorizontally\r\n    )\r\n\r\n    {\r\n        if (viewModel.gameResponse?.currentPlayerId == viewModel.playerId) { //@Elias\r\n            Button(\r\n                onClick = { viewModel.toggleCheatState(viewModel.playerId) },\r\n                colors = ButtonDefaults.buttonColors(\r\n                    containerColor = if (viewModel.isCheating(viewModel.playerId))\r\n                        Color.Red.copy(alpha = 0.7f)\r\n                    else MaterialTheme.colorScheme.primary\r\n                )\r\n            ) {\r\n                Text(\r\n                    if (viewModel.isCheating(viewModel.playerId))\r\n                        \"Farbregel ignorieren (AKTIV)\"\r\n                    else \"Farbregel ignorieren\"\r\n                )\r\n            }\r\n        }\r\n\r\n        if (trumpCard != null) {\r\n            Text(\"\uD83C\uDCCF Trumpfkarte\", style = MaterialTheme.typography.headlineSmall)\r\n            CardView(trumpCard)\r\n        } else {\r\n            Text(\"Noch keine Trumpfkarte bekannt.\", style = MaterialTheme.typography.bodyMedium)\r\n        }\r\n\r\n        // Handkarten\r\n        Text(\"\uD83C\uDFB4 Deine Handkarte${if (handCards.size > 1) \"n\" else \"\"}\", style = MaterialTheme.typography.headlineSmall)\r\n\r\n        if (handCards.isEmpty()) {\r\n            Text(\"Keine Karten erhalten oder noch nicht verteilt.\")\r\n        } else {\r\n            LazyRow(\r\n                modifier = Modifier.fillMaxWidth(),\r\n                horizontalArrangement = Arrangement.spacedBy(8.dp)\r\n            ) {\r\n                items(handCards) { card ->\r\n                    CardView(card)\r\n                }\r\n            }\r\n\r\n        }\r\n        // \uD83D\uDCDD Vorhersage-Eingabe\r\n        OutlinedTextField(\r\n            value = predictionInput,\r\n            onValueChange = { predictionInput = it.filter { c -> c.isDigit() } },\r\n            label = { Text(\"Stich-Vorhersage\") },\r\n            singleLine = true,\r\n            enabled = isMyTurn && !viewModel.hasSubmittedPrediction\r\n        )\r\n\r\n\r\n\r\n        if (!isMyTurn) {\r\n            Text(\"\uD83D\uDD04 $currentPredictionPlayerName ist gerade an der Reihe mit der Vorhersage\", color = Color.Gray)\r\n        }\r\n        if (isMyTurn && viewModel.hasSubmittedPrediction) {\r\n            Text(\"✅ Vorhersage gesendet! Warte auf andere Spieler …\", color = Color.Gray)\r\n        }\r\n\r\n\r\n        Button(\r\n            onClick = {\r\n                val prediction = predictionInput.toIntOrNull()\r\n                if (prediction != null) {\r\n                    scope.launch {\r\n                        val success = viewModel.sendPrediction(\r\n                            gameId = viewModel.gameId,\r\n                            playerId = viewModel.playerId,\r\n                            prediction = prediction\r\n                        )\r\n                        if (success) {\r\n                            viewModel.hasSubmittedPrediction = true\r\n                        } else {\r\n                            viewModel.hasSubmittedPrediction= false\r\n                            predictionInput = \"\"\r\n                        }\r\n                    }\r\n                }\r\n            },\r\n            enabled = predictionInput.isNotBlank() && isMyTurn && !viewModel.hasSubmittedPrediction\r\n        ) {\r\n            Text(\"Weiter\")\r\n        }\r\n\r\n        viewModel.error?.let {\r\n            Text(it, color = Color.Red)\r\n        }\r\n\r\n    }\r\n}\r\n\r\n@Composable\r\nfun CardView(card: CardDto) {\r\n    val backgroundColor = when (card.color.uppercase()) {\r\n        \"RED\" -> Color.Red\r\n        \"BLUE\" -> Color.Blue\r\n        \"GREEN\" -> Color.Green\r\n        \"YELLOW\" -> Color.Yellow\r\n        else -> Color.LightGray\r\n    }\r\n\r\n    val textColor = if (card.color.uppercase() in listOf(\"YELLOW\", \"GREEN\")) Color.Black else Color.White\r\n\r\n    val actualCardString = when (card.type) {\r\n        \"WIZARD\" -> \"WIZARD\"\r\n        \"JESTER\" -> \"JESTER\"\r\n        else -> \"${card.color}_${card.value}\"\r\n    }\r\n\r\n    val cardModifier = Modifier\r\n        .width(80.dp)\r\n        .height(120.dp)\r\n\r\n\r\n    Card(\r\n        modifier = cardModifier,\r\n        colors = CardDefaults.cardColors(containerColor = backgroundColor),\r\n        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),\r\n        shape = RoundedCornerShape(12.dp)\r\n    ) {\r\n        Column(\r\n            modifier = Modifier\r\n                .fillMaxSize()\r\n                .padding(8.dp),\r\n            verticalArrangement = Arrangement.SpaceBetween,\r\n            horizontalAlignment = Alignment.CenterHorizontally\r\n        ) {\r\n            Text(\r\n                text = when (card.type) {\r\n                    \"WIZARD\" -> \"Wizard\"\r\n                    \"JESTER\" -> \"Narr\"\r\n                    else -> card.color\r\n                },\r\n                style = MaterialTheme.typography.labelMedium,\r\n                color = textColor\r\n            )\r\n            Text(\r\n                text = when (card.type) {\r\n                    \"WIZARD\", \"JESTER\" -> \"\"\r\n                    else -> card.value\r\n                },\r\n                style = MaterialTheme.typography.titleLarge,\r\n                color = textColor\r\n            )\r\n        }\r\n    }\r\n}
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/app/src/main/java/at/klu/client_wizardse2/ui/presentation/screen/CardDealScreen.kt b/app/src/main/java/at/klu/client_wizardse2/ui/presentation/screen/CardDealScreen.kt
+--- a/app/src/main/java/at/klu/client_wizardse2/ui/presentation/screen/CardDealScreen.kt	(revision b88cc5e5094d4d74c5efd86020313feb960860e0)
++++ b/app/src/main/java/at/klu/client_wizardse2/ui/presentation/screen/CardDealScreen.kt	(date 1750700204746)
+@@ -131,60 +131,3 @@
+ 
+     }
+ }
+-
+-@Composable
+-fun CardView(card: CardDto) {
+-    val backgroundColor = when (card.color.uppercase()) {
+-        "RED" -> Color.Red
+-        "BLUE" -> Color.Blue
+-        "GREEN" -> Color.Green
+-        "YELLOW" -> Color.Yellow
+-        else -> Color.LightGray
+-    }
+-
+-    val textColor = if (card.color.uppercase() in listOf("YELLOW", "GREEN")) Color.Black else Color.White
+-
+-    val actualCardString = when (card.type) {
+-        "WIZARD" -> "WIZARD"
+-        "JESTER" -> "JESTER"
+-        else -> "${card.color}_${card.value}"
+-    }
+-
+-    val cardModifier = Modifier
+-        .width(80.dp)
+-        .height(120.dp)
+-
+-
+-    Card(
+-        modifier = cardModifier,
+-        colors = CardDefaults.cardColors(containerColor = backgroundColor),
+-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+-        shape = RoundedCornerShape(12.dp)
+-    ) {
+-        Column(
+-            modifier = Modifier
+-                .fillMaxSize()
+-                .padding(8.dp),
+-            verticalArrangement = Arrangement.SpaceBetween,
+-            horizontalAlignment = Alignment.CenterHorizontally
+-        ) {
+-            Text(
+-                text = when (card.type) {
+-                    "WIZARD" -> "Wizard"
+-                    "JESTER" -> "Narr"
+-                    else -> card.color
+-                },
+-                style = MaterialTheme.typography.labelMedium,
+-                color = textColor
+-            )
+-            Text(
+-                text = when (card.type) {
+-                    "WIZARD", "JESTER" -> ""
+-                    else -> card.value
+-                },
+-                style = MaterialTheme.typography.titleLarge,
+-                color = textColor
+-            )
+-        }
+-    }
+-}
+\ No newline at end of file
+Index: app/src/main/java/at/klu/client_wizardse2/ui/presentation/screen/MainScreen.kt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>package at.klu.client_wizardse2.ui.presentation.screen\r\n\r\n\r\nimport android.util.Log\r\nimport androidx.compose.foundation.background\r\nimport androidx.compose.foundation.border\r\nimport androidx.compose.foundation.clickable\r\nimport androidx.compose.foundation.layout.Arrangement\r\nimport androidx.compose.foundation.layout.Column\r\nimport androidx.compose.foundation.layout.Row\r\nimport androidx.compose.foundation.layout.Spacer\r\nimport androidx.compose.foundation.layout.fillMaxSize\r\nimport androidx.compose.foundation.layout.fillMaxWidth\r\nimport androidx.compose.foundation.layout.height\r\nimport androidx.compose.foundation.layout.padding\r\nimport androidx.compose.foundation.layout.width\r\nimport androidx.compose.foundation.lazy.LazyRow\r\nimport androidx.compose.foundation.lazy.items\r\nimport androidx.compose.foundation.shape.RoundedCornerShape\r\nimport androidx.compose.material3.Button\r\nimport androidx.compose.material3.Card\r\nimport androidx.compose.material3.CardDefaults\r\nimport androidx.compose.material3.ExperimentalMaterial3Api\r\nimport androidx.compose.material3.MaterialTheme\r\nimport androidx.compose.material3.Text\r\nimport androidx.compose.runtime.Composable\r\nimport androidx.compose.runtime.getValue\r\nimport androidx.compose.runtime.mutableStateOf\r\nimport androidx.compose.runtime.remember\r\nimport androidx.compose.runtime.setValue\r\nimport androidx.compose.ui.Modifier\r\nimport androidx.compose.ui.unit.dp\r\nimport at.klu.client_wizardse2.model.response.dto.PlayerDto\r\nimport at.klu.client_wizardse2.ui.presentation.viewmodels.MainViewModel\r\nimport androidx.compose.runtime.LaunchedEffect\r\nimport androidx.compose.runtime.mutableIntStateOf\r\nimport androidx.compose.ui.Alignment\r\nimport androidx.compose.ui.graphics.Color\r\nimport androidx.compose.ui.platform.LocalContext\r\nimport androidx.compose.ui.text.style.TextAlign\r\nimport at.klu.client_wizardse2.model.response.GameStatus\r\nimport at.klu.client_wizardse2.model.response.dto.CardDto\r\n\r\n\r\n\r\n@OptIn(ExperimentalMaterial3Api::class)\r\n@Composable\r\nfun MainScreen() {\r\n    val context = LocalContext.current //Lösung da jetzt MainViewModel einen Context erwartet...\r\n    val viewModel = remember { MainViewModel(context) }\r\n    var currentScreen by remember { mutableStateOf(Screen.Lobby) }\r\n    var previousRound by remember { mutableIntStateOf(0)  }\r\n    val showRoundSummaryScreen = viewModel.showRoundSummaryScreen\r\n\r\n\r\n    LaunchedEffect(viewModel.gameResponse?.status) {\r\n        val status = viewModel.gameResponse?.status\r\n\r\n        if (status == GameStatus.ROUND_END_SUMMARY) {\r\n            Log.d(\"MainScreen\", \"Status ist ROUND_END_SUMMARY. RoundSummaryScreen wird angezeigt.\")\r\n\r\n        }else if (status == GameStatus.PREDICTION) {\r\n            Log.d(\"MainScreen\", \"Status ist PREDICTION. Wechsle zu Deal Screen.\")\r\n            currentScreen = Screen.Deal\r\n\r\n        } else if (status == GameStatus.PLAYING) {\r\n            Log.d(\"MainScreen\", \"Status ist PLAYING. Wechsle zu Game Screen.\")\r\n            currentScreen = Screen.Game\r\n        } else if (status == GameStatus.ENDED) {\r\n            Log.d(\"MainScreen\", \"Status ist ENDED. Wechsle zu GameEnd Screen.\")\r\n            currentScreen = Screen.GameEnd\r\n        }\r\n    }\r\n\r\n    if (showRoundSummaryScreen) {\r\n        RoundSummaryScreen(\r\n            viewModel = viewModel,\r\n            onContinue = {\r\n                viewModel.proceedToNextRound()\r\n            }\r\n        )\r\n    } else {\r\n        when (currentScreen) {\r\n            Screen.Lobby -> LobbyScreen(\r\n                viewModel = viewModel,\r\n                onGameStart = {\r\n                    currentScreen = Screen.Deal\r\n                }\r\n            )\r\n            Screen.Deal -> CardDealScreen(\r\n                viewModel = viewModel,\r\n                onPredictionComplete = { currentScreen = Screen.Game }\r\n            )\r\n            Screen.Game -> {\r\n                SimpleGameScreen(viewModel = viewModel)\r\n            }\r\n            Screen.GameEnd -> {\r\n                GameEndScreen(viewModel = viewModel)\r\n            }\r\n        }\r\n    }\r\n}\r\n\r\n@Composable\r\nfun ScoreboardView(scoreboard: List<PlayerDto>, currentPlayerName: String) {\r\n    Column(modifier = Modifier.padding(16.dp)) {\r\n        Text(\"\uD83D\uDCCA Scoreboard\", style = MaterialTheme.typography.titleMedium)\r\n\r\n        val sortedScoreboard = scoreboard.sortedByDescending { it.score }\r\n\r\n        Row(\r\n            modifier = Modifier.fillMaxWidth(),\r\n            horizontalArrangement = Arrangement.SpaceBetween,\r\n            verticalAlignment = Alignment.CenterVertically\r\n        ) {\r\n            Text(text = \"Spieler\", Modifier.weight(0.5f), style = MaterialTheme.typography.labelSmall)\r\n            Text(text = \"Runden\", Modifier.weight(0.4f), style = MaterialTheme.typography.labelSmall)\r\n            Text(text = \"Gesamt\", Modifier.weight(0.1f), style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.End) // Hier auch TextAlign.End\r\n        }\r\n        Spacer(Modifier.height(4.dp))\r\n\r\n        sortedScoreboard.forEachIndexed { index, player ->\r\n            val isCurrentPlayer = player.playerName == currentPlayerName\r\n            val rank = index + 1\r\n\r\n            val nameStyle = if (isCurrentPlayer) {\r\n                MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.primary)\r\n            } else {\r\n                MaterialTheme.typography.bodyLarge\r\n            }\r\n\r\n            Row(\r\n                modifier = Modifier\r\n                    .fillMaxWidth()\r\n                    .padding(vertical = 4.dp),\r\n                horizontalArrangement = Arrangement.SpaceBetween,\r\n                verticalAlignment = Alignment.CenterVertically\r\n            ) {\r\n                Text(\r\n                    text = \"${player.playerName}\",\r\n                    style = nameStyle,\r\n                    modifier = Modifier.weight(0.5f)\r\n                )\r\n                // Zeigt die Punkte jeder Runde an\r\n                val roundScoresString =\r\n                    player.roundScores?.joinToString(\", \") ?: \"N/A\"\r\n                Text(\r\n                    text = roundScoresString,\r\n                    style = MaterialTheme.typography.bodyMedium,\r\n                    modifier = Modifier.weight(0.4f)\r\n                )\r\n\r\n                // Zeigt die Gesamtpunktzahl an\r\n                Text(\r\n                    text = \"${player.score}\",\r\n                    style = nameStyle,\r\n                    modifier = Modifier.weight(0.1f),\r\n                    textAlign = TextAlign.End\r\n                )\r\n            }\r\n\r\n        }\r\n    }\r\n}\r\n\r\n@Composable\r\nfun CardView(card: CardDto, onCardClick: ((String) -> Unit)? = null) {\r\n    val backgroundColor = when (card.color.uppercase()) {\r\n        \"RED\" -> Color.Red\r\n        \"BLUE\" -> Color.Blue\r\n        \"GREEN\" -> Color.Green\r\n        \"YELLOW\" -> Color.Yellow\r\n        else -> Color.LightGray\r\n    }\r\n\r\n    val textColor = if (card.color.uppercase() in listOf(\"YELLOW\", \"GREEN\")) Color.Black else Color.White\r\n\r\n    val actualCardString = when (card.type) {\r\n        \"WIZARD\" -> \"WIZARD\"\r\n        \"JESTER\" -> \"JESTER\"\r\n        else -> \"${card.color}_${card.value}\"\r\n    }\r\n\r\n    val cardModifier = Modifier\r\n        .width(80.dp)\r\n        .height(120.dp)\r\n        .then(\r\n            if (onCardClick != null) Modifier.clickable { onCardClick(actualCardString) }\r\n            else Modifier\r\n        )\r\n\r\n    Card(\r\n        modifier = cardModifier,\r\n        colors = CardDefaults.cardColors(containerColor = backgroundColor),\r\n        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),\r\n        shape = RoundedCornerShape(12.dp)\r\n    ) {\r\n        Column(\r\n            modifier = Modifier\r\n                .fillMaxSize()\r\n                .padding(8.dp),\r\n            verticalArrangement = Arrangement.SpaceBetween,\r\n            horizontalAlignment = Alignment.CenterHorizontally\r\n        ) {\r\n            Text(\r\n                text = when (card.type) {\r\n                    \"WIZARD\" -> \"Wizard\"\r\n                    \"JESTER\" -> \"Narr\"\r\n                    else -> card.color\r\n                },\r\n                style = MaterialTheme.typography.labelMedium,\r\n                color = textColor\r\n            )\r\n            Text(\r\n                text = when (card.type) {\r\n                    \"WIZARD\", \"JESTER\" -> \"\"\r\n                    else -> card.value\r\n                },\r\n                style = MaterialTheme.typography.titleLarge,\r\n                color = textColor\r\n            )\r\n        }\r\n    }\r\n}\r\n\r\n@Composable\r\nfun SimpleGameScreen(viewModel: MainViewModel) {\r\n    val gameResponse = viewModel.gameResponse\r\n    val players = gameResponse?.players ?: emptyList()\r\n    val currentPlayer = remember(gameResponse?.currentPlayerId, players) {\r\n        players.find { it.playerId == gameResponse?.currentPlayerId }\r\n    }\r\n    val currentRound = gameResponse?.currentRound ?: 0\r\n\r\n    Column(\r\n        modifier = Modifier.fillMaxSize().padding(16.dp),\r\n        horizontalAlignment = Alignment.CenterHorizontally,\r\n        verticalArrangement = Arrangement.SpaceAround\r\n    ) {\r\n        Text(\r\n            text = \"Runde ${gameResponse?.currentRound ?: 1}\",\r\n            style = MaterialTheme.typography.headlineSmall\r\n        )\r\n        Text(\r\n            text = \"${currentPlayer?.playerName ?: \"...\"} ist an der Reihe\",\r\n            style = MaterialTheme.typography.titleMedium\r\n        )\r\n\r\n        Column(horizontalAlignment = Alignment.CenterHorizontally) {\r\n            Text(text = \"Zuletzt gespielt:\")\r\n            val lastPlayedCardString = gameResponse?.lastPlayedCard\r\n\r\n            if (lastPlayedCardString != null) {\r\n                val lastPlayedCardDto = lastPlayedCardString.toCardDto()\r\n\r\n                if (lastPlayedCardDto != null) {\r\n                    CardView(card = lastPlayedCardDto)\r\n                } else {\r\n                    Text(text = lastPlayedCardString)\r\n                }\r\n            } else {\r\n                Text(text = \"-\")\r\n            }\r\n        }\r\n\r\n        gameResponse?.lastTrickWinnerId?.let { winnerId ->\r\n            val winnerName = players.find { it.playerId == winnerId }?.playerName\r\n            if (!winnerName.isNullOrEmpty()) {\r\n                Text(\r\n                    text = \"\uD83C\uDF89 $winnerName hat den letzten Stich gewonnen!\",\r\n                    color = Color(0xFF4CAF50), // Grün\r\n                    style = MaterialTheme.typography.bodyLarge\r\n                )\r\n            }\r\n        }\r\n\r\n        Column(horizontalAlignment = Alignment.CenterHorizontally) {\r\n            Text(\"Deine Hand:\", style = MaterialTheme.typography.titleMedium)\r\n            LazyRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {\r\n                items(gameResponse?.handCards ?: emptyList()) { card ->\r\n                    val isMyTurn = viewModel.playerId == gameResponse?.currentPlayerId\r\n                    CardView(\r\n                        card = card,\r\n                        onCardClick = { cardString: String -> //not sure ob des so passt, oda explizit mit onClick gehört\r\n                            if (isMyTurn) {\r\n                                viewModel.playCard(cardString)\r\n                            } else null\r\n                        }\r\n                    )\r\n                }\r\n            }\r\n        }\r\n\r\n        ScoreboardView(scoreboard = viewModel.scoreboard, currentPlayerName = viewModel.playerName)\r\n    }\r\n}\r\n\r\n        @Composable\r\n        fun GameEndScreen(viewModel: MainViewModel) {\r\n            val winner = remember(viewModel.scoreboard) {\r\n                viewModel.scoreboard.maxByOrNull { it.score }\r\n            }\r\n\r\n            Column(\r\n                modifier = Modifier.fillMaxSize().padding(16.dp),\r\n                horizontalAlignment = Alignment.CenterHorizontally,\r\n                verticalArrangement = Arrangement.Center\r\n            ) {\r\n                Text(\"\uD83C\uDFC6 Spiel beendet! \uD83C\uDFC6\", style = MaterialTheme.typography.headlineLarge)\r\n                Spacer(Modifier.height(16.dp))\r\n                winner?.let {\r\n                    Text(\r\n                        \"Gewinner: ${it.playerName} mit ${it.score} Punkten!\",\r\n                        style = MaterialTheme.typography.titleLarge\r\n                    )\r\n                }\r\n                Spacer(Modifier.height(32.dp))\r\n                ScoreboardView(\r\n                    scoreboard = viewModel.scoreboard,\r\n                    currentPlayerName = viewModel.playerName\r\n                )\r\n            }\r\n        }\r\n\r\n        //val showWinnerOkButton = gameResponse?.handCards?.isEmpty() == true &&\r\n        //        gameResponse.lastTrickWinnerId == viewModel.playerId &&\r\n        //        gameResponse.status.name == \"PLAYING\"\r\n\r\n\r\n        fun String.toCardDto(): CardDto? {\r\n            return when {\r\n                equals(\"WIZARD\", ignoreCase = true) -> CardDto(\r\n                    color = \"SPECIAL\",\r\n                    value = \"0\",\r\n                    type = \"WIZARD\"\r\n                )\r\n\r\n                equals(\"JESTER\", ignoreCase = true) -> CardDto(\r\n                    color = \"SPECIAL\",\r\n                    value = \"0\",\r\n                    type = \"JESTER\"\r\n                )\r\n\r\n                contains(\"_\") -> {\r\n                    val parts = this.split(\"_\")\r\n                    if (parts.size == 2) {\r\n                        CardDto(color = parts[0], value = parts[1], type = \"NUMBER\")\r\n                    } else null\r\n                }\r\n\r\n                else -> null\r\n            }\r\n        }\r\n\r\n        @Composable\r\n        fun RoundSummaryScreen(viewModel: MainViewModel, onContinue: () -> Unit) {\r\n            val currentRoundNumber = viewModel.gameResponse?.currentRound ?: 0\r\n            val roundEnded = if (currentRoundNumber > 0) currentRoundNumber - 1 else 0\r\n\r\n            Column(\r\n                modifier = Modifier\r\n                    .fillMaxSize()\r\n                    .padding(16.dp),\r\n                verticalArrangement = Arrangement.Center,\r\n                horizontalAlignment = Alignment.CenterHorizontally\r\n            ) {\r\n                Text(\"\uD83D\uDD01 Runde $roundEnded beendet!\", style = MaterialTheme.typography.headlineMedium)\r\n                Spacer(Modifier.height(12.dp))\r\n\r\n                ScoreboardView(\r\n                    scoreboard = viewModel.scoreboard,\r\n                    currentPlayerName = viewModel.playerName\r\n                )\r\n\r\n                Spacer(Modifier.height(24.dp))\r\n                Button(onClick = onContinue) {\r\n                    Text(\"Weiter zur nächsten Runde\")\r\n                }\r\n            }\r\n        }\r\n\r\n\r\n\r\n\r\n\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/app/src/main/java/at/klu/client_wizardse2/ui/presentation/screen/MainScreen.kt b/app/src/main/java/at/klu/client_wizardse2/ui/presentation/screen/MainScreen.kt
+--- a/app/src/main/java/at/klu/client_wizardse2/ui/presentation/screen/MainScreen.kt	(revision b88cc5e5094d4d74c5efd86020313feb960860e0)
++++ b/app/src/main/java/at/klu/client_wizardse2/ui/presentation/screen/MainScreen.kt	(date 1750700233151)
+@@ -1,6 +1,6 @@
+ package at.klu.client_wizardse2.ui.presentation.screen
+ 
+-
++import 
+ import android.util.Log
+ import androidx.compose.foundation.background
+ import androidx.compose.foundation.border
+@@ -101,127 +101,7 @@
+     }
+ }
+ 
+-@Composable
+-fun ScoreboardView(scoreboard: List<PlayerDto>, currentPlayerName: String) {
+-    Column(modifier = Modifier.padding(16.dp)) {
+-        Text("📊 Scoreboard", style = MaterialTheme.typography.titleMedium)
+-
+-        val sortedScoreboard = scoreboard.sortedByDescending { it.score }
+-
+-        Row(
+-            modifier = Modifier.fillMaxWidth(),
+-            horizontalArrangement = Arrangement.SpaceBetween,
+-            verticalAlignment = Alignment.CenterVertically
+-        ) {
+-            Text(text = "Spieler", Modifier.weight(0.5f), style = MaterialTheme.typography.labelSmall)
+-            Text(text = "Runden", Modifier.weight(0.4f), style = MaterialTheme.typography.labelSmall)
+-            Text(text = "Gesamt", Modifier.weight(0.1f), style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.End) // Hier auch TextAlign.End
+-        }
+-        Spacer(Modifier.height(4.dp))
+-
+-        sortedScoreboard.forEachIndexed { index, player ->
+-            val isCurrentPlayer = player.playerName == currentPlayerName
+-            val rank = index + 1
+-
+-            val nameStyle = if (isCurrentPlayer) {
+-                MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.primary)
+-            } else {
+-                MaterialTheme.typography.bodyLarge
+-            }
+ 
+-            Row(
+-                modifier = Modifier
+-                    .fillMaxWidth()
+-                    .padding(vertical = 4.dp),
+-                horizontalArrangement = Arrangement.SpaceBetween,
+-                verticalAlignment = Alignment.CenterVertically
+-            ) {
+-                Text(
+-                    text = "${player.playerName}",
+-                    style = nameStyle,
+-                    modifier = Modifier.weight(0.5f)
+-                )
+-                // Zeigt die Punkte jeder Runde an
+-                val roundScoresString =
+-                    player.roundScores?.joinToString(", ") ?: "N/A"
+-                Text(
+-                    text = roundScoresString,
+-                    style = MaterialTheme.typography.bodyMedium,
+-                    modifier = Modifier.weight(0.4f)
+-                )
+-
+-                // Zeigt die Gesamtpunktzahl an
+-                Text(
+-                    text = "${player.score}",
+-                    style = nameStyle,
+-                    modifier = Modifier.weight(0.1f),
+-                    textAlign = TextAlign.End
+-                )
+-            }
+-
+-        }
+-    }
+-}
+-
+-@Composable
+-fun CardView(card: CardDto, onCardClick: ((String) -> Unit)? = null) {
+-    val backgroundColor = when (card.color.uppercase()) {
+-        "RED" -> Color.Red
+-        "BLUE" -> Color.Blue
+-        "GREEN" -> Color.Green
+-        "YELLOW" -> Color.Yellow
+-        else -> Color.LightGray
+-    }
+-
+-    val textColor = if (card.color.uppercase() in listOf("YELLOW", "GREEN")) Color.Black else Color.White
+-
+-    val actualCardString = when (card.type) {
+-        "WIZARD" -> "WIZARD"
+-        "JESTER" -> "JESTER"
+-        else -> "${card.color}_${card.value}"
+-    }
+-
+-    val cardModifier = Modifier
+-        .width(80.dp)
+-        .height(120.dp)
+-        .then(
+-            if (onCardClick != null) Modifier.clickable { onCardClick(actualCardString) }
+-            else Modifier
+-        )
+-
+-    Card(
+-        modifier = cardModifier,
+-        colors = CardDefaults.cardColors(containerColor = backgroundColor),
+-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+-        shape = RoundedCornerShape(12.dp)
+-    ) {
+-        Column(
+-            modifier = Modifier
+-                .fillMaxSize()
+-                .padding(8.dp),
+-            verticalArrangement = Arrangement.SpaceBetween,
+-            horizontalAlignment = Alignment.CenterHorizontally
+-        ) {
+-            Text(
+-                text = when (card.type) {
+-                    "WIZARD" -> "Wizard"
+-                    "JESTER" -> "Narr"
+-                    else -> card.color
+-                },
+-                style = MaterialTheme.typography.labelMedium,
+-                color = textColor
+-            )
+-            Text(
+-                text = when (card.type) {
+-                    "WIZARD", "JESTER" -> ""
+-                    else -> card.value
+-                },
+-                style = MaterialTheme.typography.titleLarge,
+-                color = textColor
+-            )
+-        }
+-    }
+-}
+ 
+ @Composable
+ fun SimpleGameScreen(viewModel: MainViewModel) {
+Index: app/src/main/java/at/klu/client_wizardse2/ui/presentation/componants/CardViewComponant.kt
+===================================================================
+diff --git a/app/src/main/java/at/klu/client_wizardse2/ui/presentation/componants/CardViewComponant.kt b/app/src/main/java/at/klu/client_wizardse2/ui/presentation/componants/CardViewComponant.kt
+new file mode 100644
+--- /dev/null	(date 1750700204741)
++++ b/app/src/main/java/at/klu/client_wizardse2/ui/presentation/componants/CardViewComponant.kt	(date 1750700204741)
+@@ -0,0 +1,107 @@
++package at.klu.client_wizardse2.ui.presentation.componants
++
++import androidx.compose.foundation.clickable
++import androidx.compose.foundation.layout.Arrangement
++import androidx.compose.foundation.layout.Column
++import androidx.compose.foundation.layout.fillMaxSize
++import androidx.compose.foundation.layout.height
++import androidx.compose.foundation.layout.padding
++import androidx.compose.foundation.layout.width
++import androidx.compose.foundation.shape.RoundedCornerShape
++import androidx.compose.material3.Card
++import androidx.compose.material3.CardDefaults
++import androidx.compose.material3.MaterialTheme
++import androidx.compose.material3.Text
++import androidx.compose.runtime.Composable
++import androidx.compose.ui.Alignment
++import androidx.compose.ui.Modifier
++import androidx.compose.ui.graphics.Color
++import androidx.compose.ui.unit.dp
++import at.klu.client_wizardse2.model.response.dto.CardDto
++import kotlin.collections.listOf
++
++
++@Composable
++fun CardView(card: CardDto, onCardClick: ((String) -> Unit)? = null) {
++    val backgroundColor = when (card.color?.uppercase()) {
++        "RED" -> Color.Red
++        "BLUE" -> Color.Blue
++        "GREEN" -> Color.Green
++        "YELLOW" -> Color.Yellow
++        else -> Color.LightGray
++    }
++
++    val textColor = if (card.color?.uppercase() in listOf("YELLOW", "GREEN")) Color.Black else Color.White
++
++    val actualCardString = when (card.type) {
++        "WIZARD" -> "WIZARD"
++        "JESTER" -> "JESTER"
++        else -> "${card.color}_${card.value}"
++    }
++
++    val cardModifier = Modifier
++        .width(80.dp)
++        .height(120.dp)
++        .then(
++            if (onCardClick != null) Modifier.clickable { onCardClick(actualCardString) }
++            else Modifier
++        )
++
++    Card(
++        modifier = cardModifier,
++        colors = CardDefaults.cardColors(containerColor = backgroundColor),
++        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
++        shape = RoundedCornerShape(12.dp)
++    ) {
++        Column(
++            modifier = Modifier
++                .fillMaxSize()
++                .padding(8.dp),
++            verticalArrangement = Arrangement.SpaceBetween,
++            horizontalAlignment = Alignment.CenterHorizontally
++        ) {
++            Text(
++                text = when (card.type) {
++                    "WIZARD" -> "Wizard"
++                    "JESTER" -> "Narr"
++                    else -> card.color ?: "?"
++                },
++                style = MaterialTheme.typography.labelMedium,
++                color = textColor
++            )
++            Text(
++                text = when (card.type) {
++                    "WIZARD", "JESTER" -> ""
++                    else -> card.value ?: "?"
++                },
++                style = MaterialTheme.typography.titleLarge,
++                color = textColor
++            )
++        }
++    }
++}
++
++fun String.toCardDto(): CardDto? {
++    return when {
++        equals("WIZARD", ignoreCase = true) -> CardDto(
++            color = "SPECIAL",
++            value = "0",
++            type = "WIZARD"
++        )
++
++        equals("JESTER", ignoreCase = true) -> CardDto(
++            color = "SPECIAL",
++            value = "0",
++            type = "JESTER"
++        )
++
++        contains("_") -> {
++            val parts = this.split("_")
++            if (parts.size == 2) {
++                CardDto(color = parts[0], value = parts[1], type = "NUMBER")
++            } else null
++        }
++
++        else -> null
++    }
++}
+\ No newline at end of file
+Index: app/src/main/java/at/klu/client_wizardse2/ui/presentation/componants/ScoreboardComponant.kt
+===================================================================
+diff --git a/app/src/main/java/at/klu/client_wizardse2/ui/presentation/componants/ScoreboardComponant.kt b/app/src/main/java/at/klu/client_wizardse2/ui/presentation/componants/ScoreboardComponant.kt
+new file mode 100644
+--- /dev/null	(date 1750700036492)
++++ b/app/src/main/java/at/klu/client_wizardse2/ui/presentation/componants/ScoreboardComponant.kt	(date 1750700036492)
+@@ -0,0 +1,79 @@
++package at.klu.client_wizardse2.ui.presentation.componants;
++
++import androidx.compose.foundation.layout.Arrangement;
++import androidx.compose.foundation.layout.Column;
++import androidx.compose.foundation.layout.Row
++import androidx.compose.foundation.layout.Spacer
++import androidx.compose.foundation.layout.fillMaxWidth
++import androidx.compose.foundation.layout.height
++import androidx.compose.foundation.layout.padding
++import androidx.compose.material3.MaterialTheme;
++import androidx.compose.material3.Text
++import androidx.compose.runtime.Composable
++import androidx.compose.ui.Alignment
++import androidx.compose.ui.Modifier
++import androidx.compose.ui.text.style.TextAlign
++import androidx.compose.ui.unit.dp
++import at.klu.client_wizardse2.model.response.dto.PlayerDto
++import kotlin.collections.List
++@Composable
++fun ScoreboardView(scoreboard: List<PlayerDto>, currentPlayerName: String) {
++    Column(modifier = Modifier.padding(16.dp)) {
++        Text("📊 Scoreboard", style = MaterialTheme.typography.titleMedium)
++
++        val sortedScoreboard = scoreboard.sortedByDescending { it.score }
++
++        Row(
++            modifier = Modifier.fillMaxWidth(),
++            horizontalArrangement = Arrangement.SpaceBetween,
++            verticalAlignment = Alignment.CenterVertically
++        ) {
++            Text(text = "Spieler", Modifier.weight(0.4f), style = MaterialTheme.typography.labelSmall)
++            Text(text = "Runden", Modifier.weight(0.4f), style = MaterialTheme.typography.labelSmall)
++            Text(text = "Gesamt", Modifier.weight(0.2f), style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.End) // Hier auch TextAlign.End
++        }
++        Spacer(Modifier.height(4.dp))
++
++        sortedScoreboard.forEachIndexed { index, player ->
++            val isCurrentPlayer = player.playerName == currentPlayerName
++            val rank = index + 1
++
++            val nameStyle = if (isCurrentPlayer) {
++                MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.primary)
++            } else {
++                MaterialTheme.typography.bodyLarge
++            }
++
++            Row(
++                modifier = Modifier
++                    .fillMaxWidth()
++                    .padding(vertical = 4.dp),
++                horizontalArrangement = Arrangement.SpaceBetween,
++                verticalAlignment = Alignment.CenterVertically
++            ) {
++                Text(
++                    text = player.playerName,
++                    style = nameStyle,
++                    modifier = Modifier.weight(0.4f)
++                )
++                // Zeigt die Punkte jeder Runde an
++                val roundScoresString =
++                    player.roundScores?.joinToString(", ") ?: "N/A"
++                Text(
++                    text = roundScoresString,
++                    style = MaterialTheme.typography.bodyMedium,
++                    modifier = Modifier.weight(0.4f)
++                )
++
++                // Zeigt die Gesamtpunktzahl an
++                Text(
++                    text = "${player.score}",
++                    style = nameStyle,
++                    modifier = Modifier.weight(0.2f),
++                    textAlign = TextAlign.End
++                )
++            }
++
++        }
++    }
++}
+\ No newline at end of file
