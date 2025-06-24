@@ -33,6 +33,7 @@ class MainViewModelTest {
         mockkStatic(Log::class)
         every { Log.d(any(), any()) } returns 0
         every { Log.e(any(), any(), any()) } returns 0
+        every { Log.e(any(), any()) } returns 0
     }
 
     @Test
@@ -432,6 +433,52 @@ class MainViewModelTest {
         advanceUntilIdle()
 
         assertTrue("Vorhersage sollte nicht zurückgesetzt werden, wenn sich die Runde nicht ändert", viewModel.hasSubmittedPrediction)
+    }
+
+    @Test
+    fun `abortGameForAll should call GameStompClient with correct gameId`() = runTest {
+        val testGameId = "game-to-abort"
+        viewModel.gameId = testGameId
+        coEvery { GameStompClient.sendForceEndGame(any()) } just Runs
+
+        viewModel.abortGameForAll()
+        advanceUntilIdle()
+
+        coVerify { GameStompClient.sendForceEndGame(eq(testGameId)) }
+    }
+
+    @Test
+    fun `abortGameForAll should do nothing if gameId is empty`() = runTest {
+        viewModel.gameId = ""
+
+       coEvery { GameStompClient.sendForceEndGame(any()) } just Runs
+
+        viewModel.abortGameForAll()
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { GameStompClient.sendForceEndGame(any()) }
+    }
+
+    @Test
+    fun `returnToLobbyForAll should call GameStompClient with correct gameId`() = runTest {
+        val testGameId = "game-to-return"
+        viewModel.gameId = testGameId
+        coEvery { GameStompClient.sendReturnToLobbyRequest(any()) } just Runs
+
+        viewModel.returnToLobbyForAll()
+        advanceUntilIdle()
+
+        coVerify { GameStompClient.sendReturnToLobbyRequest(eq(testGameId)) }
+    }
+
+    @Test
+    fun `returnToLobbyForAll should do nothing if gameId is empty`() = runTest {
+       viewModel.gameId = ""
+
+        viewModel.returnToLobbyForAll()
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { GameStompClient.sendReturnToLobbyRequest(any()) }
     }
 
 }

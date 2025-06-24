@@ -193,5 +193,30 @@ object GameStompClient {
         Log.d(TAG, "Proceed to next round request sent for gameId: $gameId")
     }
 
+    suspend fun sendForceEndGame(gameId: String) {
+        val jsonGameId = "\"$gameId\""
+        session?.sendText("/app/game/abort", jsonGameId)
+        Log.d(TAG, "Force end game request sent for gameId: $gameId")
+    }
+
+    suspend fun sendReturnToLobbyRequest(gameId: String) {
+        val jsonGameId = "\"$gameId\""
+        session?.sendText("/app/game/return-to-lobby", jsonGameId)
+        Log.d(TAG, "Return-to-lobby request sent for gameId: $gameId")
+    }
+
+    suspend fun subscribeToLobbyReturn(
+        gameId: String,
+        onReceive: () -> Unit,
+        scope: CoroutineScope
+    ) {
+        val topic = "/topic/game/$gameId/lobby"
+        Log.d(TAG, "Subscribing to lobby return topic: $topic")
+        session?.subscribeText(topic)?.onEach {
+            Log.d(TAG, "Lobby return signal received!")
+            onReceive()
+        }?.launchIn(scope)
+    }
+
 
  }
