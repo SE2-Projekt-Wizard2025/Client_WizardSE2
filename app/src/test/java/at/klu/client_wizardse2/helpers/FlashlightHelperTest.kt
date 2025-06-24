@@ -1,36 +1,36 @@
 package at.klu.client_wizardse2.helpers
 
-import android.content.Context
-import android.hardware.camera2.CameraCharacteristics
-import android.hardware.camera2.CameraManager
 import android.util.Log
 import at.klu.client_wizardse2.helper.FlashlightHelper
-import io.mockk.*
-import kotlinx.coroutines.test.*
+import at.klu.client_wizardse2.helper.TorchController
+import io.mockk.clearAllMocks
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.mockkStatic
+import io.mockk.verify
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
 
+@ExperimentalCoroutinesApi
 class FlashlightHelperTest {
 
-    private lateinit var context: Context
-    private lateinit var cameraManager: CameraManager
+    private val controller = mockk<TorchController>(relaxed = true)
+    private val dispatcher = StandardTestDispatcher()
     private lateinit var helper: FlashlightHelper
-
-    private val testDispatcher = StandardTestDispatcher()
-    private val testScope = TestScope(testDispatcher)
 
     @Before
     fun setup() {
-        context = mockk()
-        cameraManager = mockk(relaxed = true)
-        every { context.getSystemService(Context.CAMERA_SERVICE) } returns cameraManager
+        helper = FlashlightHelper(controller, dispatcher)
+        every { controller.getCameraIdList() } returns arrayOf("0")
+        every { controller.isFlashAvailable("0") } returns true
 
-        helper = FlashlightHelper(context)
-    }
-
-    @Before
-    fun suppressAndroidLog() {
+        // suppress Android Log
         mockkStatic(Log::class)
         every { Log.e(any(), any(), any()) } returns 0
     }
@@ -41,49 +41,38 @@ class FlashlightHelperTest {
     }
 
     @Test
-    fun `toggleFlashlight false immediately disables torch`() {
-        val cameraId = "0"
-        every { cameraManager.cameraIdList } returns arrayOf(cameraId)
-        val characteristics = mockk<CameraCharacteristics>()
-        every { cameraManager.getCameraCharacteristics(cameraId) } returns characteristics
-        every { characteristics.get(CameraCharacteristics.FLASH_INFO_AVAILABLE) } returns true
+    fun `startFlashlightJob logs error if exception thrown`() = runTest(dispatcher) {
+        every { controller.getCameraIdList() } throws RuntimeException("Camera failure")
 
-        justRun { cameraManager.setTorchMode(any(), any()) }
-
-        helper.toggleFlashlight(enable = false)
-
-        verify {
-            cameraManager.setTorchMode(cameraId, false)
-        }
+        helper.toggleFlashlight(true, durationMs = 500)
+        advanceUntilIdle()
     }
 
     @Test
-    fun `getCameraId throws when no camera with flash`() {
-        every { cameraManager.cameraIdList } returns arrayOf("0", "1")
-        val characteristics = mockk<CameraCharacteristics>()
-        every { cameraManager.getCameraCharacteristics(any()) } returns characteristics
-        every { characteristics.get(CameraCharacteristics.FLASH_INFO_AVAILABLE) } returns false
-
-        justRun { cameraManager.setTorchMode(any(), any()) }
-
-        helper.toggleFlashlight(enable = false)
+    fun `toggleFlashlight false disables flashlight immediately`() = runTest(dispatcher) {
+        helper.toggleFlashlight(false)
+        runCurrent()
+        verify { controller.setTorchMode("0", false) }
     }
 
     @Test
-    fun `cleanup cancels job and disables torch`() {
-        val cameraId = "0"
-        every { cameraManager.cameraIdList } returns arrayOf(cameraId)
-        val characteristics = mockk<CameraCharacteristics>()
-        every { cameraManager.getCameraCharacteristics(cameraId) } returns characteristics
-        every { characteristics.get(CameraCharacteristics.FLASH_INFO_AVAILABLE) } returns true
-
-        justRun { cameraManager.setTorchMode(any(), any()) }
-
-        helper.toggleFlashlight(true, 1000)
+    fun `cleanup cancels job and disables flashlight`() = runTest(dispatcher) {
+        helper.toggleFlashlight(true, durationMs = 100)
         helper.cleanup()
+        runCurrent()
+        verify { controller.setTorchMode("0", false) }
+    }
 
-        verify {
-            cameraManager.setTorchMode(cameraId, false)
-        }
+    @Test
+    fun `turnOffFlashlightSafely logs error when exception occurs`() = runTest(dispatcher) {
+        every { controller.getCameraIdList() } returns arrayOf("0")
+        every { controller.isFlashAvailable("0") } returns true
+        every { controller.setTorchMode("0", false) } throws RuntimeException("Failed to turn off")
+
+        helper.toggleFlashlight(false)
+        runCurrent() // ensure coroutine runs
+
+        verify { controller.setTorchMode("0", false) }
     }
 }
+

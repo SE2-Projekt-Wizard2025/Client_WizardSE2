@@ -1,6 +1,7 @@
 package at.klu.client_wizardse2.ui.presentation.viewmodels
 
 import android.content.Context
+import android.hardware.camera2.CameraManager
 import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
@@ -8,20 +9,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import at.klu.client_wizardse2.helper.FlashlightHelper
-//import dagger.hilt.android.lifecycle.HiltViewModel
-//import javax.inject.Inject
-
+import at.klu.client_wizardse2.helper.*
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-
-
-
 import at.klu.client_wizardse2.model.response.GameResponse
 import at.klu.client_wizardse2.model.response.dto.PlayerDto
 import at.klu.client_wizardse2.network.GameStompClient
-import kotlinx.coroutines.delay
-import org.jetbrains.annotations.VisibleForTesting
 import at.klu.client_wizardse2.model.response.GameStatus
+import org.jetbrains.annotations.VisibleForTesting
 
 class MainViewModel(private val context: Context) : ViewModel() {
 
@@ -40,55 +35,51 @@ class MainViewModel(private val context: Context) : ViewModel() {
     var playerId: String = ""
 
     var playerName: String = ""
-        private set
+        @VisibleForTesting set
 
     var scoreboard by mutableStateOf<List<PlayerDto>>(emptyList())
         @VisibleForTesting
         internal set
 
     var showRoundSummaryScreen by mutableStateOf(false)
-        private set
+        @VisibleForTesting set
 
     var hasSubmittedPrediction by mutableStateOf(false)
 
     private var lastKnownRound by mutableStateOf(-1)
 
+    private val _cheatStates = mutableStateMapOf<String, Boolean>()
 
-    private val _cheatStates = mutableStateMapOf<String, Boolean>() //@Elias
     val cheatStates: Map<String, Boolean> get() = _cheatStates
-
-    //private val flashlightHelper = FlashlightHelper(context)
-
 
     fun isCheating(playerId: String): Boolean {
         return _cheatStates[playerId] ?: false
     }
 
     fun toggleCheatState(playerId: String) {
-        if (!::flashlightHelper.isInitialized) {
-            flashlightHelper = FlashlightHelper(context)
-        }
+        ensureFlashlightHelperInitialized()
 
         _cheatStates[playerId] = !(_cheatStates[playerId] ?: false)
 
-        if (isCheating(playerId)) { //automatisch aktivieren wenn button gedrückt wird
-            flashlightHelper.toggleFlashlight(
-                true,
-                5000
-            ) //DURATION: hier wert ändern für Balancing je nachdem wie leicht es auffällt
+        if (isCheating(playerId)) {
+            flashlightHelper.toggleFlashlight(true, 5000)
         }
     }
 
     override fun onCleared() {
         super.onCleared()
-        flashlightHelper.cleanup()
+        performCleanupIfNeeded()
     }
 
+    fun performCleanupIfNeeded() {
+        if (::flashlightHelper.isInitialized) {
+            flashlightHelper.cleanup()
+        }
+    }
 
     fun connectAndJoin(gameId: String, playerId: String, playerName: String) {
-        if (!::flashlightHelper.isInitialized) {
-            flashlightHelper = FlashlightHelper(context)
-        }
+        ensureFlashlightHelperInitialized()
+
         this.gameId = gameId
         this.playerId = playerId
         this.playerName = playerName
@@ -101,23 +92,22 @@ class MainViewModel(private val context: Context) : ViewModel() {
                     GameStompClient.subscribeToGameUpdates(
                         playerId = playerId,
                         onUpdate = { response ->
-                            // 🔁 Runde hat sich geändert → Vorhersage-Zustände zurücksetzen
                             if (response.currentRound != lastKnownRound) {
                                 hasSubmittedPrediction = false
                                 error = null
                                 lastKnownRound = response.currentRound
                             }
-                            if (response.status == GameStatus.ROUND_END_SUMMARY) { // NEU: Prüfung auf ROUND_END_SUMMARY
-                                showRoundSummaryScreen = true // Signalisiert der UI, den Zusammenfassungsbildschirm anzuzeigen
-                                Log.d("MainViewModel", "GameStatus ist ROUND_END_SUMMARY. Zeige Runden-Zusammenfassung an.")
+                            if (response.status == GameStatus.ROUND_END_SUMMARY) {
+                                showRoundSummaryScreen = true
+                                Log.d("MainViewModel", "ROUND_END_SUMMARY: show summary")
                             } else {
-                               if (showRoundSummaryScreen) {
+                                if (showRoundSummaryScreen) {
                                     showRoundSummaryScreen = false
-                                    Log.d("MainViewModel", "GameStatus ist nicht mehr ROUND_END_SUMMARY. Verberge Runden-Zusammenfassung.")
+                                    Log.d("MainViewModel", "Exiting ROUND_END_SUMMARY")
                                 }
                             }
 
-                            gameResponse = response // ⬅️ Das MUSS erhalten bleiben!
+                            gameResponse = response
                         },
                         scope = viewModelScope
                     )
@@ -139,7 +129,6 @@ class MainViewModel(private val context: Context) : ViewModel() {
                 error = "Error: ${e.message}"
             }
         }
-
     }
 
     fun subscribeToScoreboard(gameId: String) {
@@ -154,7 +143,6 @@ class MainViewModel(private val context: Context) : ViewModel() {
             )
         }
     }
-
 
     fun startGame() {
         viewModelScope.launch {
@@ -184,16 +172,13 @@ class MainViewModel(private val context: Context) : ViewModel() {
 
     fun playCard(cardString: String) {
         viewModelScope.launch {
-
             if (gameId.isNotEmpty() && playerId.isNotEmpty()) {
                 GameStompClient.sendPlayCardRequest(
                     gameId,
                     playerId,
                     cardString,
-                    isCheating = isCheating(playerId)//@Elias idk wie man des verlinkt mitn GameStompClient, aba da Server muss den Cheat-Status erkennen
+                    isCheating = isCheating(playerId)
                 )
-
-                //hier ggf _cheatStates[playerID] wieder false setzen, aber dann ist Aufdecken von Cheatern unmöglich..?
                 _cheatStates[playerId] = false
             } else {
                 error = "Game ID or Player ID not set. Cannot play card."
@@ -205,12 +190,10 @@ class MainViewModel(private val context: Context) : ViewModel() {
         gameResponse = gameResponse?.copy(lastTrickWinnerId = null)
     }
 
-    fun proceedToNextRound() { // NEU: Methode
+    fun proceedToNextRound() {
         viewModelScope.launch {
             if (gameId.isNotEmpty()) {
-                GameStompClient.sendProceedToNextRound(gameId) // NEU: Aufruf an GameStompClient
-                // Nach dem Senden der Anfrage erwarten wir eine neue GameResponse,
-                // die den Status auf PREDICTION setzen sollte und den Zusammenfassungsbildschirm ausblendet.
+                GameStompClient.sendProceedToNextRound(gameId)
             } else {
                 Log.e("MainViewModel", "Cannot proceed to next round: gameId is empty.")
             }
@@ -223,7 +206,6 @@ class MainViewModel(private val context: Context) : ViewModel() {
         playerId = ""
         playerName = ""
         showRoundSummaryScreen = false
-
     }
 
     fun endGameEarly() {
@@ -249,4 +231,17 @@ class MainViewModel(private val context: Context) : ViewModel() {
         }
     }
 
+    private fun ensureFlashlightHelperInitialized() {
+        if (!::flashlightHelper.isInitialized) {
+            val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
+            val torchController = AndroidTorchController(cameraManager)
+            flashlightHelper = FlashlightHelper(torchController)
+        }
+    }
+
+    // In MainViewModel
+    @VisibleForTesting
+    fun isFlashlightHelperInitialized(): Boolean {
+        return ::flashlightHelper.isInitialized
+    }
 }
