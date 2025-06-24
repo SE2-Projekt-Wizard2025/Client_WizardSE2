@@ -217,4 +217,36 @@ class MainViewModel(private val context: Context) : ViewModel() {
         }
     }
 
+    fun resetGame() {
+        gameResponse = null
+        scoreboard = emptyList()
+        playerId = ""
+        playerName = ""
+        showRoundSummaryScreen = false
+
+    }
+
+    fun endGameEarly() {
+        gameResponse = gameResponse?.copy(status = GameStatus.ENDED)
+        showRoundSummaryScreen = false
+    }
+
+    fun abortGameForAll() {
+        viewModelScope.launch {
+            if (gameId.isNotEmpty()) {
+                GameStompClient.sendForceEndGame(gameId)
+            } else {
+                Log.e("MainViewModel", "Cannot abort game: gameId is empty.")
+            }
+        }
+    }
+
+    fun returnToLobbyForAll() {
+        viewModelScope.launch {
+            if (gameId.isNotEmpty()) {
+                GameStompClient.sendReturnToLobbyRequest(gameId)
+            }
+        }
+    }
+
 }

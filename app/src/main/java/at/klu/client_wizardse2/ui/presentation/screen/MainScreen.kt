@@ -2,6 +2,7 @@ package at.klu.client_wizardse2.ui.presentation.screen
 
 
 import android.util.Log
+import androidx.activity.ComponentActivity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -18,6 +19,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -34,17 +36,18 @@ import at.klu.client_wizardse2.model.response.dto.PlayerDto
 import at.klu.client_wizardse2.ui.presentation.viewmodels.MainViewModel
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import at.klu.client_wizardse2.model.response.GameStatus
 import at.klu.client_wizardse2.model.response.dto.CardDto
+import at.klu.client_wizardse2.network.GameStompClient
 import at.klu.client_wizardse2.ui.presentation.components.ScoreboardView
 import at.klu.client_wizardse2.ui.presentation.components.CardView
 import at.klu.client_wizardse2.ui.presentation.components.toCardDto
-
-
+import kotlinx.coroutines.launch
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -81,6 +84,9 @@ fun MainScreen() {
             viewModel = viewModel,
             onContinue = {
                 viewModel.proceedToNextRound()
+            },
+            onAbortGame = {
+                viewModel.abortGameForAll()
             }
         )
     } else {
@@ -99,7 +105,15 @@ fun MainScreen() {
                 SimpleGameScreen(viewModel = viewModel)
             }
             Screen.GameEnd -> {
-                GameEndScreen(viewModel = viewModel)
+                GameEndScreen(
+                    viewModel = viewModel,
+                    onRestartGame = {
+                        viewModel.returnToLobbyForAll()
+                    },
+                    onNavigateToLobby = {
+                        currentScreen = Screen.Lobby
+                    }
+                )
             }
         }
     }
@@ -184,10 +198,30 @@ fun SimpleGameScreen(viewModel: MainViewModel) {
 }
 
         @Composable
-        fun GameEndScreen(viewModel: MainViewModel) {
+        fun GameEndScreen(viewModel: MainViewModel, onRestartGame: () -> Unit, onNavigateToLobby: () -> Unit) {
+            val scope = rememberCoroutineScope()
+
+            LaunchedEffect(key1 = viewModel.gameId) {
+                if (viewModel.gameId.isNotEmpty()) {
+                    scope.launch {
+                        GameStompClient.subscribeToLobbyReturn(
+                            gameId = viewModel.gameId,
+                            onReceive = {
+                                viewModel.resetGame()
+                                onNavigateToLobby()
+                            },
+                            scope = this
+                        )
+                    }
+                }
+            }
+
             val winner = remember(viewModel.scoreboard) {
                 viewModel.scoreboard.maxByOrNull { it.score }
             }
+
+            val context = LocalContext.current
+            val activity = context as? ComponentActivity
 
             Column(
                 modifier = Modifier.fillMaxSize().padding(16.dp),
@@ -207,6 +241,11 @@ fun SimpleGameScreen(viewModel: MainViewModel) {
                     scoreboard = viewModel.scoreboard,
                     currentPlayerName = viewModel.playerName
                 )
+
+                Button(onClick = onRestartGame) {
+                    Text("Neues Spiel starten")
+                }
+
             }
         }
 
@@ -216,7 +255,7 @@ fun SimpleGameScreen(viewModel: MainViewModel) {
 
 
         @Composable
-        fun RoundSummaryScreen(viewModel: MainViewModel, onContinue: () -> Unit) {
+        fun RoundSummaryScreen(viewModel: MainViewModel, onContinue: () -> Unit, onAbortGame: () -> Unit) {
             val currentRoundNumber = viewModel.gameResponse?.currentRound ?: 0
             val roundEnded = if (currentRoundNumber > 0) currentRoundNumber else 0
 
@@ -236,11 +275,22 @@ fun SimpleGameScreen(viewModel: MainViewModel) {
                 )
 
                 Spacer(Modifier.height(24.dp))
+
                 Button(onClick = onContinue) {
                     Text("Weiter zur nächsten Runde")
                 }
+
+                Spacer(Modifier.height(12.dp))
+
+                Button(
+                    onClick = onAbortGame,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F))
+                ) {
+                    Text("⛔ Spiel abbrechen", color = Color.White)
+                }
             }
         }
+
 
 
 

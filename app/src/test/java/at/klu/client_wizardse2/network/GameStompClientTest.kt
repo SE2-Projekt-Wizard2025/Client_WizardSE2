@@ -233,6 +233,7 @@ class GameStompClientTest {
             )
         }
 
+
     fun `sendJoinRequest should do nothing if session is null`() = runTest {
         // Arrange
         GameStompClient.setSessionForTesting(null)
@@ -436,10 +437,6 @@ class GameStompClientTest {
         assertTrue(result!!.isEmpty())
     }
 
-
-
-
-
     fun `sendProceedToNextRound should send correct gameId to endpoint`() = testScope.runTest {
         GameStompClient.setSessionForTesting(mockSession)
         val gameId = "game-to-advance"
@@ -455,5 +452,60 @@ class GameStompClientTest {
         coVerify {
             mockSession.sendText(eq("/app/game/proceedToNextRound"), eq(expectedJson))
         }
+    }
+
+    @Test
+    fun `sendForceEndGame should send quoted gameId to abort endpoint`() = testScope.runTest {
+
+        GameStompClient.setSessionForTesting(mockSession)
+        val gameId = "game-to-abort"
+        val expectedJson = "\"$gameId\""
+        coEvery { mockSession.sendText(any(), any()) } returns null
+
+        GameStompClient.sendForceEndGame(gameId)
+        advanceUntilIdle()
+
+        coVerify {
+            mockSession.sendText(eq("/app/game/abort"), eq(expectedJson))
+        }
+    }
+
+    @Test
+    fun `sendReturnToLobbyRequest should send quoted gameId to lobby endpoint`() = testScope.runTest {
+
+        GameStompClient.setSessionForTesting(mockSession)
+        val gameId = "game-to-return"
+        val expectedJson = "\"$gameId\""
+        coEvery { mockSession.sendText(any(), any()) } returns null
+
+        GameStompClient.sendReturnToLobbyRequest(gameId)
+        advanceUntilIdle()
+
+        coVerify {
+            mockSession.sendText(eq("/app/game/return-to-lobby"), eq(expectedJson))
+        }
+    }
+
+    @Test
+    fun `subscribeToLobbyReturn should invoke callback on message`() = testScope.runTest {
+
+        val gameId = "game1"
+        val topic = "/topic/game/$gameId/lobby"
+        val flow = flowOf("RETURN")
+        coEvery { mockSession.subscribeText(topic) } returns flow
+        GameStompClient.setSessionForTesting(mockSession)
+
+        var callbackTriggered = false
+
+
+        GameStompClient.subscribeToLobbyReturn(
+            gameId = gameId,
+            onReceive = { callbackTriggered = true },
+            scope = this
+        )
+        advanceUntilIdle()
+
+        assertTrue("Callback should be triggered on message", callbackTriggered)
+        coVerify { mockSession.subscribeText(eq(topic)) }
     }
 }
