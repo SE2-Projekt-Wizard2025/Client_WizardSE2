@@ -238,4 +238,10 @@ class MainViewModel(private val context: Context) : ViewModel() {
             flashlightHelper = FlashlightHelper(torchController)
         }
     }
+
+    // In MainViewModel
+    @VisibleForTesting
+    fun isFlashlightHelperInitialized(): Boolean {
+        return ::flashlightHelper.isInitialized
+    }
 }

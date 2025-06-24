@@ -2,6 +2,8 @@ package at.klu.client_wizardse2.ui.presentation.viewmodels
 
 import android.util.Log
 import android.content.Context
+import android.hardware.camera2.CameraManager
+import at.klu.client_wizardse2.helper.AndroidTorchController
 import at.klu.client_wizardse2.helper.FlashlightHelper
 import at.klu.client_wizardse2.model.response.GameResponse
 import at.klu.client_wizardse2.model.response.GameStatus
@@ -669,5 +671,27 @@ class MainViewModelTest {
 
         assertEquals(GameStatus.ENDED, viewModel.gameResponse?.status)
         assertFalse(viewModel.showRoundSummaryScreen)
+    }
+
+    @Test
+    fun `flashlightHelper should be initialized when toggleCheatState is called without prior init`() {
+        // Neues ViewModel mit Kontext, aber ohne flashlightHelper-Zuweisung
+        val freshViewModel = MainViewModel(context)
+
+        // Stubbe AndroidTorchController intern, damit kein echter Zugriff erfolgt
+        mockkConstructor(AndroidTorchController::class)
+        every { anyConstructed<AndroidTorchController>().setTorchMode(any(), any()) } just Runs
+        every { anyConstructed<AndroidTorchController>().getCameraIdList() } returns arrayOf("0")
+        every { anyConstructed<AndroidTorchController>().isFlashAvailable("0") } returns true
+
+        // Mocke Context → CameraManager
+        val mockCameraManager = mockk<CameraManager>(relaxed = true)
+        every { context.getSystemService(Context.CAMERA_SERVICE) } returns mockCameraManager
+
+        // Aufruf einer Methode, die flashlightHelper verwendet
+        freshViewModel.toggleCheatState("p123")
+
+        // Erwartung: flashlightHelper wurde initialisiert
+        assertTrue(freshViewModel.isFlashlightHelperInitialized())
     }
 }
