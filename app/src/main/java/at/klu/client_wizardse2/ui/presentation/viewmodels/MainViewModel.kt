@@ -223,6 +223,9 @@ class MainViewModel(private val context: Context) : ViewModel() {
         playerId = ""
         playerName = ""
         showRoundSummaryScreen = false
+        error = null
+        hasSubmittedPrediction = false
+        lastKnownRound = -1
 
     }
 
