@@ -23,14 +23,6 @@ class MainViewModel(private val context: Context) : ViewModel() {
     lateinit var flashlightHelper: FlashlightHelper
         @VisibleForTesting set
 
-    private fun ensureFlashlightHelperInitialized() {
-        if (!::flashlightHelper.isInitialized) {
-            val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
-            val torchController = AndroidTorchController(cameraManager)
-            flashlightHelper = FlashlightHelper(torchController)
-        }
-    }
-
     var gameResponse by mutableStateOf<GameResponse?>(null)
         @VisibleForTesting set
 
@@ -43,20 +35,21 @@ class MainViewModel(private val context: Context) : ViewModel() {
     var playerId: String = ""
 
     var playerName: String = ""
-        private set
+        @VisibleForTesting set
 
     var scoreboard by mutableStateOf<List<PlayerDto>>(emptyList())
         @VisibleForTesting
         internal set
 
     var showRoundSummaryScreen by mutableStateOf(false)
-        private set
+        @VisibleForTesting set
 
     var hasSubmittedPrediction by mutableStateOf(false)
 
     private var lastKnownRound by mutableStateOf(-1)
 
     private val _cheatStates = mutableStateMapOf<String, Boolean>()
+
     val cheatStates: Map<String, Boolean> get() = _cheatStates
 
     fun isCheating(playerId: String): Boolean {
@@ -75,6 +68,10 @@ class MainViewModel(private val context: Context) : ViewModel() {
 
     override fun onCleared() {
         super.onCleared()
+        performCleanupIfNeeded()
+    }
+
+    fun performCleanupIfNeeded() {
         if (::flashlightHelper.isInitialized) {
             flashlightHelper.cleanup()
         }
@@ -231,6 +228,14 @@ class MainViewModel(private val context: Context) : ViewModel() {
             if (gameId.isNotEmpty()) {
                 GameStompClient.sendReturnToLobbyRequest(gameId)
             }
+        }
+    }
+
+    private fun ensureFlashlightHelperInitialized() {
+        if (!::flashlightHelper.isInitialized) {
+            val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
+            val torchController = AndroidTorchController(cameraManager)
+            flashlightHelper = FlashlightHelper(torchController)
         }
     }
 }

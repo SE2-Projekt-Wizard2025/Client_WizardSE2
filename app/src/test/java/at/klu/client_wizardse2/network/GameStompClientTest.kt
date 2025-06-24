@@ -232,9 +232,10 @@ class GameStompClientTest {
                 }
             )
         }
+    }
 
-
-    fun `sendJoinRequest should do nothing if session is null`() = runTest {
+    @Test
+    fun `sendJoinRequest should do nothing if session is null`() = testScope.runTest {
         // Arrange
         GameStompClient.setSessionForTesting(null)
 
@@ -243,7 +244,7 @@ class GameStompClientTest {
     }
 
     @Test
-    fun `sendPrediction should do nothing if session is null`() = runTest {
+    fun `sendPrediction should do nothing if session is null`() = testScope.runTest {
         // Arrange
         GameStompClient.setSessionForTesting(null)
 
@@ -252,7 +253,7 @@ class GameStompClientTest {
     }
 
     @Test
-    fun `sendStartGameRequest should do nothing if session is null`() = runTest {
+    fun `sendStartGameRequest should do nothing if session is null`() = testScope.runTest {
         // Arrange
         GameStompClient.setSessionForTesting(null)
 
@@ -261,7 +262,7 @@ class GameStompClientTest {
     }
 
     @Test
-    fun `subscribeToGameUpdates should not crash on null session`() = runTest {
+    fun `subscribeToGameUpdates should not crash on null session`() = testScope.runTest {
         // Arrange
         GameStompClient.setSessionForTesting(null)
 
@@ -281,7 +282,7 @@ class GameStompClientTest {
     }
 
     @Test
-    fun `subscribeToGameUpdates should catch JSON parsing exception`() = runTest {
+    fun `subscribeToGameUpdates should catch JSON parsing exception`() = testScope.runTest {
         val invalidJson = """{ invalid json """
         val flow = flowOf(invalidJson)
 
@@ -302,8 +303,8 @@ class GameStompClientTest {
     }
 
     @Test
-    fun `subscribeToGameUpdates should use default CoroutineScope`() = runTest {
-        val json = """{"gameId":"g1","status":"PLAYING","currentPlayerId":"p1","players":[],"handCards":[],"lastPlayedCard":null}"""
+    fun `subscribeToGameUpdates should use default CoroutineScope`() = testScope.runTest {
+        val json = """{"gameId":"g1","status":"PLAYING","currentPlayerId":"p1","players":[],"handCards":[],"lastPlayedCard":null, "lastTrickWinnerId": "p1"}"""
         val flow = flowOf(json)
 
         coEvery { mockSession.subscribeText("/topic/game/p1") } returns flow
@@ -322,9 +323,8 @@ class GameStompClientTest {
 
     }
 
-}
     @Test
-    fun `sendPlayCardRequest should do nothing if session is null`() = runTest {
+    fun `sendPlayCardRequest should do nothing if session is null`() = testScope.runTest {
         GameStompClient.setSessionForTesting(null)
         GameStompClient.sendPlayCardRequest("game-id", "player-id", "RED_5")
     }

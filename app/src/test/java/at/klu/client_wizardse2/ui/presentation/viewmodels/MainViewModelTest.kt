@@ -184,19 +184,6 @@ class MainViewModelTest {
         coVerify { GameStompClient.sendStartGameRequest(eq(testGameId)) }
     }
 
-
-    /*private fun setupMockSuccess() {
-        coEvery { GameStompClient.connect() } returns true
-        @Suppress("UNCHECKED_CAST")
-        coEvery {
-            GameStompClient.subscribeToGameUpdates(playerId = any(), onUpdate = any(), scope = any())
-        } answers {
-            val callback = args[1] as (GameResponse) -> Unit
-            callback(fakeResponse)
-        }
-        coEvery { GameStompClient.sendJoinRequest(any(), any(), any()) } returns Unit
-    }*/
-
     companion object {
         private const val TEST_GAME_ID = "game1"
         private const val TEST_PLAYER_ID = "p1"
@@ -481,4 +468,206 @@ class MainViewModelTest {
         coVerify(exactly = 0) { GameStompClient.sendReturnToLobbyRequest(any()) }
     }
 
+    @Test
+    fun `toggleCheatState should enable cheating and trigger flashlight`() {
+        val playerId = "test-player"
+        val flashlightMock = mockk<FlashlightHelper>(relaxed = true)
+        viewModel.flashlightHelper = flashlightMock
+
+        viewModel.toggleCheatState(playerId)
+
+        assertTrue(viewModel.cheatStates[playerId] == true)
+        verify { flashlightMock.toggleFlashlight(true, 5000) }
+    }
+
+    @Test
+    fun `toggleCheatState should disable cheating on second call`() {
+        val playerId = "test-player"
+        val flashlightMock = mockk<FlashlightHelper>(relaxed = true)
+        viewModel.flashlightHelper = flashlightMock
+
+        viewModel.toggleCheatState(playerId)
+        viewModel.toggleCheatState(playerId)
+
+        assertFalse(viewModel.cheatStates[playerId] ?: true)
+        verify(exactly = 1) { flashlightMock.toggleFlashlight(true, 5000) }
+    }
+
+    @Test
+    fun `onCleared should call cleanup if flashlightHelper is initialized`() {
+        val flashlightMock = mockk<FlashlightHelper>(relaxed = true)
+        viewModel.flashlightHelper = flashlightMock
+
+        viewModel.performCleanupIfNeeded()
+
+        verify { flashlightMock.cleanup() }
+    }
+
+    @Test
+    fun `connectAndJoin sets showRoundSummaryScreen to true when status is ROUND_END_SUMMARY`() = runTest {
+        coEvery { GameStompClient.connect() } returns true
+        coEvery { GameStompClient.subscribeToErrors(any(), any(), any()) } just Runs
+        coEvery { GameStompClient.sendJoinRequest(any(), any(), any()) } just Runs
+        coEvery { GameStompClient.subscribeToScoreboard(any(), any(), any()) } just Runs
+
+        coEvery {
+            GameStompClient.subscribeToGameUpdates(
+                playerId = any(),
+                onUpdate = captureLambda(),
+                scope = any()
+            )
+        } answers {
+            lambda<(GameResponse) -> Unit>().invoke(
+                GameResponse(
+                    gameId = "game1",
+                    status = GameStatus.ROUND_END_SUMMARY,
+                    currentPlayerId = "p1",
+                    players = emptyList(),
+                    handCards = emptyList(),
+                    lastPlayedCard = null,
+                    lastTrickWinnerId = null,
+                    currentRound = 1
+                )
+            )
+        }
+
+        viewModel.connectAndJoin("game1", "p1", "Alice")
+        advanceUntilIdle()
+
+        assertTrue(viewModel.showRoundSummaryScreen)
+    }
+
+    @Test
+    fun `connectAndJoin sets showRoundSummaryScreen to false when status changes from ROUND_END_SUMMARY`() = runTest {
+        coEvery { GameStompClient.connect() } returns true
+        coEvery { GameStompClient.subscribeToErrors(any(), any(), any()) } just Runs
+        coEvery { GameStompClient.sendJoinRequest(any(), any(), any()) } just Runs
+        coEvery { GameStompClient.subscribeToScoreboard(any(), any(), any()) } just Runs
+
+        val updateSlot = slot<(GameResponse) -> Unit>()
+
+        coEvery {
+            GameStompClient.subscribeToGameUpdates(
+                playerId = any(),
+                onUpdate = capture(updateSlot),
+                scope = any()
+            )
+        } just Runs
+
+        viewModel.connectAndJoin("game1", "p1", "Alice")
+        advanceUntilIdle()
+
+        updateSlot.captured.invoke(
+            GameResponse(
+                gameId = "game1",
+                status = GameStatus.ROUND_END_SUMMARY,
+                currentPlayerId = "p1",
+                players = emptyList(),
+                handCards = emptyList(),
+                lastPlayedCard = null,
+                lastTrickWinnerId = null,
+                currentRound = 1
+            )
+        )
+        assertTrue(viewModel.showRoundSummaryScreen)
+
+        updateSlot.captured.invoke(
+            GameResponse(
+                gameId = "game1",
+                status = GameStatus.PLAYING,
+                currentPlayerId = "p1",
+                players = emptyList(),
+                handCards = emptyList(),
+                lastPlayedCard = null,
+                lastTrickWinnerId = null,
+                currentRound = 1
+            )
+        )
+        assertFalse(viewModel.showRoundSummaryScreen)
+    }
+
+    @Test
+    fun `subscribeToScoreboard updates scoreboard correctly`() = runTest {
+        // Arrange
+        val scoreboardCallbackSlot = slot<(List<PlayerDto>) -> Unit>()
+        val gameId = "test-game"
+
+        val sampleBoard = listOf(
+            PlayerDto("p1", "Alice", 10, true, 1, 1),
+            PlayerDto("p2", "Bob", 15, true, 2, 2)
+        )
+
+        coEvery {
+            GameStompClient.subscribeToScoreboard(
+                gameId = gameId,
+                onScoreboardReceived = capture(scoreboardCallbackSlot),
+                scope = any()
+            )
+        } just Runs
+
+        // Act
+        viewModel.subscribeToScoreboard(gameId)
+        advanceUntilIdle()
+
+        scoreboardCallbackSlot.captured.invoke(sampleBoard)
+
+        assertEquals(2, viewModel.scoreboard.size)
+        assertEquals("Alice", viewModel.scoreboard[0].playerName)
+        assertEquals("Bob", viewModel.scoreboard[1].playerName)
+    }
+
+    @Test
+    fun `proceedToNextRound should call GameStompClient with correct gameId`() = runTest {
+        val testGameId = "round-game-42"
+        viewModel.gameId = testGameId
+
+        coEvery { GameStompClient.sendProceedToNextRound(any()) } just Runs
+
+        viewModel.proceedToNextRound()
+        advanceUntilIdle()
+
+        coVerify { GameStompClient.sendProceedToNextRound(eq(testGameId)) }
+    }
+
+    @Test
+    fun `proceedToNextRound should not call GameStompClient when gameId is empty`() = runTest {
+        viewModel.gameId = ""
+
+        coEvery { GameStompClient.sendProceedToNextRound(any()) } just Runs
+
+        viewModel.proceedToNextRound()
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { GameStompClient.sendProceedToNextRound(any()) }
+    }
+
+    @Test
+    fun `resetGame should reset all game state`() {
+        viewModel.gameResponse = fakeResponse
+        viewModel.scoreboard = listOf(
+            PlayerDto("p1", "Alice", 10, true, 1, 1)
+        )
+        viewModel.playerId = "player123"
+        viewModel.playerName = "Bob"
+        viewModel.showRoundSummaryScreen = true
+
+        viewModel.resetGame()
+
+        assertNull(viewModel.gameResponse)
+        assertTrue(viewModel.scoreboard.isEmpty())
+        assertEquals("", viewModel.playerId)
+        assertEquals("", viewModel.playerName)
+        assertFalse(viewModel.showRoundSummaryScreen)
+    }
+
+    @Test
+    fun `endGameEarly should update game status to ENDED and hide summary`() {
+        viewModel.gameResponse = fakeResponse.copy(status = GameStatus.PLAYING)
+        viewModel.showRoundSummaryScreen = true
+
+        viewModel.endGameEarly()
+
+        assertEquals(GameStatus.ENDED, viewModel.gameResponse?.status)
+        assertFalse(viewModel.showRoundSummaryScreen)
+    }
 }
